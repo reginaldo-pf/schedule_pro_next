@@ -209,3 +209,56 @@ export async function verifyPortalToken(
     return null;
   }
 }
+
+/**
+ * Generates a single-use 1-hour Password Reset token bound to the current password hash fingerprint
+ */
+export async function generatePasswordResetToken(
+  userId: number,
+  email: string,
+  currentPasswordHash: string
+): Promise<string> {
+  const pwdFp = currentPasswordHash.slice(-16);
+  return await new SignJWT({
+    userId,
+    email,
+    pwdFp,
+    purpose: "password_reset",
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("1h")
+    .sign(SECRET_KEY);
+}
+
+export async function verifyPasswordResetToken(token: string): Promise<{
+  valid: boolean;
+  expired?: boolean;
+  userId?: number;
+  email?: string;
+  pwdFp?: string;
+}> {
+  try {
+    const { payload } = await jwtVerify(token, SECRET_KEY);
+    if (
+      payload.purpose === "password_reset" &&
+      typeof payload.userId === "number" &&
+      typeof payload.email === "string" &&
+      typeof payload.pwdFp === "string"
+    ) {
+      return {
+        valid: true,
+        userId: payload.userId,
+        email: payload.email,
+        pwdFp: payload.pwdFp,
+      };
+    }
+    return { valid: false };
+  } catch (err: unknown) {
+    const isExpired =
+      err instanceof Error &&
+      (err.name === "JWTExpired" || err.message.includes("exp"));
+    return { valid: false, expired: isExpired };
+  }
+}
+
