@@ -42,11 +42,13 @@ export interface CourseReportPage {
 
 export interface TeacherReportPage {
   teacher: { id: number; name: string; short_name: string; color: string; email: string | null };
+  group_names: string;
   matrix: Record<string, Record<number, ReportEntryCell>>;
   timeline_rows: ReportTimelineRow[];
   lesson_count: number;
   header_info: {
     teacher_name: string;
+    group_names: string;
   };
 }
 
@@ -344,6 +346,7 @@ export async function buildTeacherReportPages({
 
     const matrix: Record<string, Record<number, ReportEntryCell>> = {};
     const activePeriodIds = new Set<number>();
+    const groupNamesSet = new Set<string>();
 
     for (const entry of teacherEntries) {
       if (!matrix[entry.day_of_week]) {
@@ -351,6 +354,9 @@ export async function buildTeacherReportPages({
       }
       const pId = Number(entry.period_id);
       activePeriodIds.add(pId);
+      if (entry.classes_schoolclass.groups_group?.name) {
+        groupNamesSet.add(entry.classes_schoolclass.groups_group.name);
+      }
 
       const resolvedRoomName =
         entry.rooms_room?.name ||
@@ -406,6 +412,8 @@ export async function buildTeacherReportPages({
       timelineRows.pop();
     }
 
+    const groupNames = Array.from(groupNamesSet).sort().join(", ");
+
     pages.push({
       teacher: {
         id: Number(teacher.id),
@@ -414,11 +422,13 @@ export async function buildTeacherReportPages({
         color: teacher.color,
         email: teacher.email,
       },
+      group_names: groupNames,
       matrix,
       timeline_rows: timelineRows,
       lesson_count: teacherEntries.length,
       header_info: {
         teacher_name: teacher.name,
+        group_names: groupNames,
       },
     });
   }

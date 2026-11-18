@@ -36,11 +36,7 @@ export default async function CourseReportPage({
     }),
   ]);
 
-  const groupId = sp.group
-    ? Number(sp.group)
-    : groups[0]
-    ? Number(groups[0].id)
-    : null;
+  const groupId = sp.group ? Number(sp.group) : null;
   const classId = sp.class ? Number(sp.class) : null;
 
   const days = getActiveProjectDaysList(project);

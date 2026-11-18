@@ -675,6 +675,12 @@ export function ScheduleMatrixPdfDocument({
                       <Text style={styles.metaLabel}>Projeto: </Text>
                       {projectHeader.name}
                     </Text>
+                    {page.group_names ? (
+                      <Text style={styles.metaItem}>
+                        <Text style={styles.metaLabel}>Curso(s): </Text>
+                        {page.group_names}
+                      </Text>
+                    ) : null}
                     <Text style={styles.metaItem}>
                       <Text style={styles.metaLabel}>Vigência: </Text>
                       {projectHeader.academic_period || "Atual"}

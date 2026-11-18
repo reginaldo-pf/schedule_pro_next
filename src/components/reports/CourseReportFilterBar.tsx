@@ -40,7 +40,7 @@ export function CourseReportFilterBar({
               value={selectedGroup || ""}
               onChange={(e) => updateFilter(e.target.value, "")}
             >
-              <option value="">Selecione um Curso...</option>
+              <option value="">Todos os Cursos / Grupos</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}

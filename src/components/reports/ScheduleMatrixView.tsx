@@ -419,6 +419,11 @@ export function ScheduleMatrixView({
                           <span>
                             <strong>Projeto:</strong> {projectHeader.name}
                           </span>
+                          {page.group_names && (
+                            <span>
+                              <strong>Curso(s):</strong> {page.group_names}
+                            </span>
+                          )}
                           <span>
                             <strong>Vigência:</strong>{" "}
                             {projectHeader.academic_period || "Atual"}

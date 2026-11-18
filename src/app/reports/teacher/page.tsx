@@ -37,11 +37,7 @@ export default async function TeacherReportPage({
   ]);
 
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
-  const groupId = sp.group
-    ? Number(sp.group)
-    : !teacherId && groups[0]
-    ? Number(groups[0].id)
-    : null;
+  const groupId = sp.group ? Number(sp.group) : null;
 
   const days = getActiveProjectDaysList(project);
   const { pages, generatedAt } = await buildTeacherReportPages({
