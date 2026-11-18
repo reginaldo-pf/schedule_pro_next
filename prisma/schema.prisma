@@ -1,0 +1,589 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model accounts_user {
+  id                             BigInt                           @id @default(autoincrement())
+  password                       String                           @db.VarChar(128)
+  last_login                     DateTime?                        @db.Timestamptz(6)
+  is_superuser                   Boolean
+  username                       String                           @unique @db.VarChar(150)
+  first_name                     String                           @db.VarChar(150)
+  last_name                      String                           @db.VarChar(150)
+  is_staff                       Boolean
+  is_active                      Boolean
+  date_joined                    DateTime                         @db.Timestamptz(6)
+  email                          String                           @unique @db.VarChar(254)
+  created_at                     DateTime                         @db.Timestamptz(6)
+  updated_at                     DateTime                         @db.Timestamptz(6)
+  profile                        String                           @db.VarChar(20)
+  accounts_user_groups           accounts_user_groups[]
+  accounts_user_user_permissions accounts_user_user_permissions[]
+  acl_membership                 acl_membership[]
+  classes_schoolclass            classes_schoolclass[]
+  django_admin_log               django_admin_log[]
+  groups_group                   groups_group[]
+  plans_subscription             plans_subscription?
+  rooms_room                     rooms_room[]
+  schedules_project              schedules_project[]
+  schedules_projectparticipant   schedules_projectparticipant[]
+  solver_schedulegenerationrun   solver_schedulegenerationrun[]
+  subjects_subject               subjects_subject[]
+  teachers_teacher               teachers_teacher[]
+
+  @@index([email], map: "accounts_user_email_b2644a56_like")
+  @@index([username], map: "accounts_user_username_6088629e_like")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model accounts_user_groups {
+  id            BigInt        @id @default(autoincrement())
+  user_id       BigInt
+  group_id      Int
+  auth_group    auth_group    @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_user_groups_group_id_bd11a704_fk_auth_group_id")
+  accounts_user accounts_user @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_user_groups_user_id_52b62117_fk_accounts_user_id")
+
+  @@unique([user_id, group_id], map: "accounts_user_groups_user_id_group_id_59c0b32f_uniq")
+  @@index([group_id], map: "accounts_user_groups_group_id_bd11a704")
+  @@index([user_id], map: "accounts_user_groups_user_id_52b62117")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model accounts_user_user_permissions {
+  id              BigInt          @id @default(autoincrement())
+  user_id         BigInt
+  permission_id   Int
+  auth_permission auth_permission @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_user_user_p_permission_id_113bb443_fk_auth_perm")
+  accounts_user   accounts_user   @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "accounts_user_user_p_user_id_e4f0a161_fk_accounts_")
+
+  @@unique([user_id, permission_id], map: "accounts_user_user_permi_user_id_permission_id_2ab516c2_uniq")
+  @@index([permission_id], map: "accounts_user_user_permissions_permission_id_113bb443")
+  @@index([user_id], map: "accounts_user_user_permissions_user_id_e4f0a161")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model acl_membership {
+  id                        BigInt                    @id @default(autoincrement())
+  role                      String                    @db.VarChar(20)
+  active                    Boolean
+  created_at                DateTime                  @db.Timestamptz(6)
+  organization_id           BigInt
+  user_id                   BigInt
+  institutions_organization institutions_organization @relation(fields: [organization_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "acl_membership_organization_id_5d42d118_fk_instituti")
+  accounts_user             accounts_user             @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "acl_membership_user_id_68ae3b1d_fk_accounts_user_id")
+
+  @@unique([user_id, organization_id], map: "acl_membership_user_id_organization_id_b3c9a6d5_uniq")
+  @@index([organization_id], map: "acl_membership_organization_id_5d42d118")
+  @@index([user_id], map: "acl_membership_user_id_68ae3b1d")
+}
+
+model auth_group {
+  id                     Int                      @id @default(autoincrement())
+  name                   String                   @unique @db.VarChar(150)
+  accounts_user_groups   accounts_user_groups[]
+  auth_group_permissions auth_group_permissions[]
+
+  @@index([name], map: "auth_group_name_a6ea08ec_like")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model auth_group_permissions {
+  id              BigInt          @id @default(autoincrement())
+  group_id        Int
+  permission_id   Int
+  auth_permission auth_permission @relation(fields: [permission_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_group_permissio_permission_id_84c5c92e_fk_auth_perm")
+  auth_group      auth_group      @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_group_permissions_group_id_b120cbf9_fk_auth_group_id")
+
+  @@unique([group_id, permission_id], map: "auth_group_permissions_group_id_permission_id_0cd325b0_uniq")
+  @@index([group_id], map: "auth_group_permissions_group_id_b120cbf9")
+  @@index([permission_id], map: "auth_group_permissions_permission_id_84c5c92e")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model auth_permission {
+  id                             Int                              @id @default(autoincrement())
+  name                           String                           @db.VarChar(255)
+  content_type_id                Int
+  codename                       String                           @db.VarChar(100)
+  accounts_user_user_permissions accounts_user_user_permissions[]
+  auth_group_permissions         auth_group_permissions[]
+  django_content_type            django_content_type              @relation(fields: [content_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "auth_permission_content_type_id_2f476e4b_fk_django_co")
+
+  @@unique([content_type_id, codename], map: "auth_permission_content_type_id_codename_01ab375a_uniq")
+  @@index([content_type_id], map: "auth_permission_content_type_id_2f476e4b")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model availability_roomavailability {
+  id             BigInt         @id @default(autoincrement())
+  day_of_week    String         @db.VarChar(15)
+  status         String         @db.VarChar(15)
+  period_id      BigInt
+  room_id        BigInt
+  periods_period periods_period @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "availability_roomava_period_id_0604f5c6_fk_periods_p")
+  rooms_room     rooms_room     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "availability_roomavailability_room_id_a3f32044_fk_rooms_room_id")
+
+  @@unique([room_id, period_id, day_of_week], map: "uniq_room_period_day")
+  @@index([period_id], map: "availability_roomavailability_period_id_0604f5c6")
+  @@index([room_id], map: "availability_roomavailability_room_id_a3f32044")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model availability_schoolclassavailability {
+  id                  BigInt              @id @default(autoincrement())
+  day_of_week         String              @db.VarChar(15)
+  status              String              @db.VarChar(15)
+  period_id           BigInt
+  school_class_id     BigInt
+  periods_period      periods_period      @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "availability_schoolc_period_id_daa1722f_fk_periods_p")
+  classes_schoolclass classes_schoolclass @relation(fields: [school_class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "availability_schoolc_school_class_id_a10c13d5_fk_classes_s")
+
+  @@unique([school_class_id, period_id, day_of_week], map: "uniq_class_period_day")
+  @@index([period_id], map: "availability_schoolclassavailability_period_id_daa1722f")
+  @@index([school_class_id], map: "availability_schoolclassavailability_school_class_id_a10c13d5")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model availability_teacheravailability {
+  id               BigInt           @id @default(autoincrement())
+  day_of_week      String           @db.VarChar(15)
+  status           String           @db.VarChar(15)
+  period_id        BigInt
+  teacher_id       BigInt
+  valid_from       DateTime?        @db.Date
+  valid_until      DateTime?        @db.Date
+  periods_period   periods_period   @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "availability_teacher_period_id_f0386b9e_fk_periods_p")
+  teachers_teacher teachers_teacher @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "availability_teacher_teacher_id_ce57a688_fk_teachers_")
+
+  @@unique([teacher_id, period_id, day_of_week], map: "uniq_teacher_period_day")
+  @@index([period_id], map: "availability_teacheravailability_period_id_f0386b9e")
+  @@index([teacher_id], map: "availability_teacheravailability_teacher_id_ce57a688")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model classes_schoolclass {
+  id                                   BigInt                                 @id @default(autoincrement())
+  name                                 String                                 @db.VarChar(255)
+  color                                String                                 @db.VarChar(7)
+  level                                String                                 @db.VarChar(100)
+  shifts                               String[]                               @db.VarChar(20)
+  active                               Boolean
+  created_at                           DateTime                               @db.Timestamptz(6)
+  updated_at                           DateTime                               @db.Timestamptz(6)
+  group_id                             BigInt
+  project_id                           BigInt
+  room_id                              BigInt?
+  responsible_id                       BigInt?
+  availability_schoolclassavailability availability_schoolclassavailability[]
+  groups_group                         groups_group                           @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "classes_schoolclass_group_id_b8d67f4c_fk_groups_group_id")
+  schedules_project                    schedules_project                      @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "classes_schoolclass_project_id_937769f0_fk_schedules_project_id")
+  accounts_user                        accounts_user?                         @relation(fields: [responsible_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "classes_schoolclass_responsible_id_532daa41_fk_accounts_user_id")
+  rooms_room                           rooms_room?                            @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "classes_schoolclass_room_id_be4798b4_fk_rooms_room_id")
+  lessons_lesson_classes               lessons_lesson_classes[]
+  solver_generatedscheduleentry        solver_generatedscheduleentry[]
+
+  @@index([group_id], map: "classes_schoolclass_group_id_b8d67f4c")
+  @@index([project_id], map: "classes_schoolclass_project_id_937769f0")
+  @@index([responsible_id], map: "classes_schoolclass_responsible_id_532daa41")
+  @@index([room_id], map: "classes_schoolclass_room_id_be4798b4")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model django_admin_log {
+  id                  Int                  @id @default(autoincrement())
+  action_time         DateTime             @db.Timestamptz(6)
+  object_id           String?
+  object_repr         String               @db.VarChar(200)
+  action_flag         Int                  @db.SmallInt
+  change_message      String
+  content_type_id     Int?
+  user_id             BigInt
+  django_content_type django_content_type? @relation(fields: [content_type_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "django_admin_log_content_type_id_c4bce8eb_fk_django_co")
+  accounts_user       accounts_user        @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "django_admin_log_user_id_c564eba6_fk_accounts_user_id")
+
+  @@index([content_type_id], map: "django_admin_log_content_type_id_c4bce8eb")
+  @@index([user_id], map: "django_admin_log_user_id_c564eba6")
+}
+
+model django_content_type {
+  id               Int                @id @default(autoincrement())
+  app_label        String             @db.VarChar(100)
+  model            String             @db.VarChar(100)
+  auth_permission  auth_permission[]
+  django_admin_log django_admin_log[]
+
+  @@unique([app_label, model], map: "django_content_type_app_label_model_76bd3d3b_uniq")
+}
+
+model django_migrations {
+  id      BigInt   @id @default(autoincrement())
+  app     String   @db.VarChar(255)
+  name    String   @db.VarChar(255)
+  applied DateTime @db.Timestamptz(6)
+}
+
+model django_session {
+  session_key  String   @id @db.VarChar(40)
+  session_data String
+  expire_date  DateTime @db.Timestamptz(6)
+
+  @@index([expire_date], map: "django_session_expire_date_a5c62663")
+  @@index([session_key], map: "django_session_session_key_c0390e0f_like")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model groups_group {
+  id                  BigInt                @id @default(autoincrement())
+  name                String                @db.VarChar(255)
+  created_at          DateTime              @db.Timestamptz(6)
+  updated_at          DateTime              @db.Timestamptz(6)
+  project_id          BigInt
+  owner_id            BigInt?
+  classes_schoolclass classes_schoolclass[]
+  accounts_user       accounts_user?        @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "groups_group_owner_id_65c81251_fk_accounts_user_id")
+  schedules_project   schedules_project     @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "groups_group_project_id_52259abb_fk_schedules_project_id")
+  subjects_subject    subjects_subject[]
+
+  @@index([owner_id], map: "groups_group_owner_id_65c81251")
+  @@index([project_id], map: "groups_group_project_id_52259abb")
+}
+
+model institutions_organization {
+  id             BigInt           @id @default(autoincrement())
+  name           String           @db.VarChar(255)
+  slug           String           @unique @db.VarChar(50)
+  active         Boolean
+  created_at     DateTime         @db.Timestamptz(6)
+  updated_at     DateTime         @db.Timestamptz(6)
+  acl_membership acl_membership[]
+
+  @@index([slug], map: "institutions_organization_slug_1911b75f_like")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model lessons_lesson {
+  id                            BigInt                          @id @default(autoincrement())
+  number_of_lessons             Int
+  max_lessons_per_day           Int
+  max_days_of_lessons           Int
+  grouping_type                 String                          @db.VarChar(20)
+  allow_consecutive_days        Boolean
+  active                        Boolean
+  created_at                    DateTime                        @db.Timestamptz(6)
+  updated_at                    DateTime                        @db.Timestamptz(6)
+  project_id                    BigInt
+  room_id                       BigInt?
+  subject_id                    BigInt
+  schedules_project             schedules_project               @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_project_id_9ce3a46b_fk_schedules_project_id")
+  rooms_room                    rooms_room?                     @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_room_id_a09b4ae2_fk_rooms_room_id")
+  subjects_subject              subjects_subject                @relation(fields: [subject_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_subject_id_21faad34_fk_subjects_subject_id")
+  lessons_lesson_classes        lessons_lesson_classes[]
+  lessons_lesson_teachers       lessons_lesson_teachers[]
+  solver_generatedscheduleentry solver_generatedscheduleentry[]
+
+  @@index([project_id], map: "lessons_lesson_project_id_9ce3a46b")
+  @@index([room_id], map: "lessons_lesson_room_id_a09b4ae2")
+  @@index([subject_id], map: "lessons_lesson_subject_id_21faad34")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model lessons_lesson_classes {
+  id                  BigInt              @id @default(autoincrement())
+  lesson_id           BigInt
+  schoolclass_id      BigInt
+  classes_schoolclass classes_schoolclass @relation(fields: [schoolclass_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_class_schoolclass_id_d30a7076_fk_classes_s")
+  lessons_lesson      lessons_lesson      @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_classes_lesson_id_b4d951c2_fk_lessons_lesson_id")
+
+  @@unique([lesson_id, schoolclass_id], map: "lessons_lesson_classes_lesson_id_schoolclass_id_2b241c0f_uniq")
+  @@index([lesson_id], map: "lessons_lesson_classes_lesson_id_b4d951c2")
+  @@index([schoolclass_id], map: "lessons_lesson_classes_schoolclass_id_d30a7076")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model lessons_lesson_teachers {
+  id               BigInt           @id @default(autoincrement())
+  lesson_id        BigInt
+  teacher_id       BigInt
+  teachers_teacher teachers_teacher @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_teach_teacher_id_6906eecf_fk_teachers_")
+  lessons_lesson   lessons_lesson   @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "lessons_lesson_teachers_lesson_id_21ef68d6_fk_lessons_lesson_id")
+
+  @@unique([lesson_id, teacher_id], map: "lessons_lesson_teachers_lesson_id_teacher_id_160a661d_uniq")
+  @@index([lesson_id], map: "lessons_lesson_teachers_lesson_id_21ef68d6")
+  @@index([teacher_id], map: "lessons_lesson_teachers_teacher_id_6906eecf")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model periods_period {
+  id                                   BigInt                                 @id @default(autoincrement())
+  name                                 String                                 @db.VarChar(100)
+  start_time                           DateTime                               @db.Time(6)
+  end_time                             DateTime                               @db.Time(6)
+  shift                                String                                 @db.VarChar(20)
+  period_type                          String                                 @db.VarChar(20)
+  created_at                           DateTime                               @db.Timestamptz(6)
+  order                                Int
+  updated_at                           DateTime                               @db.Timestamptz(6)
+  project_id                           BigInt
+  availability_roomavailability        availability_roomavailability[]
+  availability_schoolclassavailability availability_schoolclassavailability[]
+  availability_teacheravailability     availability_teacheravailability[]
+  schedules_project                    schedules_project                      @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "periods_period_project_id_dc3a2de1_fk_schedules_project_id")
+  solver_generatedscheduleentry        solver_generatedscheduleentry[]
+
+  @@unique([project_id, shift, order], map: "uniq_project_shift_order")
+  @@index([project_id], map: "periods_period_project_id_dc3a2de1")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model plans_plan {
+  id                 BigInt               @id @default(autoincrement())
+  name               String               @db.VarChar(100)
+  slug               String               @unique @db.VarChar(50)
+  max_classes        Int
+  duration_days      Int
+  is_trial           Boolean
+  price              Decimal              @db.Decimal(10, 2)
+  active             Boolean
+  max_projects       Int
+  plans_subscription plans_subscription[]
+
+  @@index([slug], map: "plans_plan_slug_ac82072e_like")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model plans_subscription {
+  id            BigInt        @id @default(autoincrement())
+  plan_id       BigInt
+  active        Boolean
+  starts_at     DateTime      @db.Timestamptz(6)
+  expires_at    DateTime?     @db.Timestamptz(6)
+  created_at    DateTime      @db.Timestamptz(6)
+  updated_at    DateTime      @db.Timestamptz(6)
+  user_id       BigInt        @unique
+  plans_plan    plans_plan    @relation(fields: [plan_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "plans_subscription_plan_id_26b06369_fk_plans_plan_id")
+  accounts_user accounts_user @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "plans_subscription_user_id_bd1dc58a_fk_accounts_user_id")
+
+  @@index([plan_id], map: "plans_subscription_plan_id_26b06369")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model rooms_room {
+  id                            BigInt                          @id @default(autoincrement())
+  name                          String                          @db.VarChar(255)
+  capacity                      Int
+  active                        Boolean
+  created_at                    DateTime                        @db.Timestamptz(6)
+  description                   String
+  project_id                    BigInt
+  simultaneous_lessons          Int
+  updated_at                    DateTime                        @db.Timestamptz(6)
+  owner_id                      BigInt?
+  availability_roomavailability availability_roomavailability[]
+  classes_schoolclass           classes_schoolclass[]
+  lessons_lesson                lessons_lesson[]
+  accounts_user                 accounts_user?                  @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "rooms_room_owner_id_13734245_fk_accounts_user_id")
+  schedules_project             schedules_project               @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "rooms_room_project_id_4bab32e4_fk_schedules_project_id")
+  solver_generatedscheduleentry solver_generatedscheduleentry[]
+  subjects_subject              subjects_subject[]
+
+  @@index([owner_id], map: "rooms_room_owner_id_13734245")
+  @@index([project_id], map: "rooms_room_project_id_4bab32e4")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model schedules_project {
+  id                           BigInt                         @id @default(autoincrement())
+  name                         String                         @db.VarChar(255)
+  institution_name             String                         @db.VarChar(255)
+  academic_period              String                         @db.VarChar(20)
+  timezone                     String                         @db.VarChar(100)
+  report_header                String
+  logo                         String?                        @db.VarChar(100)
+  sunday                       Boolean
+  monday                       Boolean
+  tuesday                      Boolean
+  wednesday                    Boolean
+  thursday                     Boolean
+  friday                       Boolean
+  saturday                     Boolean
+  lunch_break_enabled          Boolean
+  lunch_start                  DateTime?                      @db.Time(6)
+  lunch_end                    DateTime?                      @db.Time(6)
+  lunch_duration               Unsupported("interval")?
+  dinner_break_enabled         Boolean
+  dinner_start                 DateTime?                      @db.Time(6)
+  dinner_end                   DateTime?                      @db.Time(6)
+  dinner_duration              Unsupported("interval")?
+  interclass_break_enabled     Boolean
+  interclass_break_duration    Unsupported("interval")?
+  created_at                   DateTime                       @db.Timestamptz(6)
+  updated_at                   DateTime                       @db.Timestamptz(6)
+  owner_id                     BigInt
+  classes_schoolclass          classes_schoolclass[]
+  groups_group                 groups_group[]
+  lessons_lesson               lessons_lesson[]
+  periods_period               periods_period[]
+  rooms_room                   rooms_room[]
+  accounts_user                accounts_user                  @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "schedules_project_owner_id_09129bc2_fk_accounts_user_id")
+  schedules_projectparticipant schedules_projectparticipant[]
+  solver_scheduleconstraint    solver_scheduleconstraint[]
+  solver_schedulegenerationrun solver_schedulegenerationrun[]
+  subjects_subject             subjects_subject[]
+  teachers_teacher             teachers_teacher[]
+
+  @@index([owner_id], map: "schedules_project_owner_id_09129bc2")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model schedules_projectparticipant {
+  id                BigInt            @id @default(autoincrement())
+  invited_at        DateTime          @db.Timestamptz(6)
+  accepted_at       DateTime?         @db.Timestamptz(6)
+  active            Boolean
+  project_id        BigInt
+  user_id           BigInt
+  role              String            @db.VarChar(20)
+  schedules_project schedules_project @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "schedules_projectpar_project_id_1fbb1e67_fk_schedules")
+  accounts_user     accounts_user     @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "schedules_projectpar_user_id_324eac47_fk_accounts_")
+
+  @@unique([project_id, user_id], map: "schedules_projectparticipant_project_id_user_id_b1b593a0_uniq")
+  @@index([project_id], map: "schedules_projectparticipant_project_id_1fbb1e67")
+  @@index([user_id], map: "schedules_projectparticipant_user_id_324eac47")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model solver_generatedscheduleentry {
+  id                           BigInt                       @id @default(autoincrement())
+  day_of_week                  String                       @db.VarChar(15)
+  lesson_index                 Int
+  created_at                   DateTime                     @db.Timestamptz(6)
+  lesson_id                    BigInt
+  period_id                    BigInt
+  room_id                      BigInt?
+  run_id                       BigInt
+  school_class_id              BigInt
+  teacher_id                   BigInt?
+  is_locked                    Boolean
+  lessons_lesson               lessons_lesson               @relation(fields: [lesson_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_generatedsche_lesson_id_20241a77_fk_lessons_l")
+  periods_period               periods_period               @relation(fields: [period_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_generatedsche_period_id_539fa8ea_fk_periods_p")
+  solver_schedulegenerationrun solver_schedulegenerationrun @relation(fields: [run_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_generatedsche_run_id_9fca0e33_fk_solver_sc")
+  classes_schoolclass          classes_schoolclass          @relation(fields: [school_class_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_generatedsche_school_class_id_68b1ae42_fk_classes_s")
+  teachers_teacher             teachers_teacher?            @relation(fields: [teacher_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_generatedsche_teacher_id_f43ad938_fk_teachers_")
+  rooms_room                   rooms_room?                  @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_generatedscheduleentry_room_id_3eebd88c_fk_rooms_room_id")
+
+  @@unique([run_id, lesson_id, school_class_id, lesson_index], map: "uniq_generated_lesson_class_index")
+  @@index([lesson_id], map: "solver_generatedscheduleentry_lesson_id_20241a77")
+  @@index([period_id], map: "solver_generatedscheduleentry_period_id_539fa8ea")
+  @@index([room_id], map: "solver_generatedscheduleentry_room_id_3eebd88c")
+  @@index([run_id], map: "solver_generatedscheduleentry_run_id_9fca0e33")
+  @@index([school_class_id], map: "solver_generatedscheduleentry_school_class_id_68b1ae42")
+  @@index([teacher_id], map: "solver_generatedscheduleentry_teacher_id_f43ad938")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model solver_scheduleconstraint {
+  id                BigInt            @id @default(autoincrement())
+  name              String            @db.VarChar(180)
+  constraint_type   String            @db.VarChar(10)
+  scope             String            @db.VarChar(20)
+  config            Json
+  weight            Int
+  required          Boolean
+  active            Boolean
+  created_at        DateTime          @db.Timestamptz(6)
+  updated_at        DateTime          @db.Timestamptz(6)
+  project_id        BigInt
+  schedules_project schedules_project @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_scheduleconst_project_id_efe8e9de_fk_schedules")
+
+  @@index([project_id], map: "solver_scheduleconstraint_project_id_efe8e9de")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model solver_schedulegenerationrun {
+  id                            BigInt                          @id @default(autoincrement())
+  status                        String                          @db.VarChar(20)
+  objective_value               Int?
+  diagnostics                   Json
+  started_at                    DateTime                        @db.Timestamptz(6)
+  finished_at                   DateTime?                       @db.Timestamptz(6)
+  created_by_id                 BigInt?
+  project_id                    BigInt
+  solver_generatedscheduleentry solver_generatedscheduleentry[]
+  accounts_user                 accounts_user?                  @relation(fields: [created_by_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_schedulegener_created_by_id_6f145b5d_fk_accounts_")
+  schedules_project             schedules_project               @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "solver_schedulegener_project_id_51e98648_fk_schedules")
+
+  @@index([created_by_id], map: "solver_schedulegenerationrun_created_by_id_6f145b5d")
+  @@index([project_id], map: "solver_schedulegenerationrun_project_id_51e98648")
+}
+
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model subjects_subject {
+  id                BigInt            @id @default(autoincrement())
+  name              String            @db.VarChar(255)
+  abbreviated_name  String            @db.VarChar(50)
+  active            Boolean
+  created_at        DateTime          @db.Timestamptz(6)
+  color             String            @db.VarChar(7)
+  project_id        BigInt
+  room_id           BigInt?
+  updated_at        DateTime          @db.Timestamptz(6)
+  owner_id          BigInt?
+  group_id          BigInt
+  lessons_lesson    lessons_lesson[]
+  groups_group      groups_group      @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "subjects_subject_group_id_7eb4df46_fk_groups_group_id")
+  accounts_user     accounts_user?    @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "subjects_subject_owner_id_9cde00d5_fk_accounts_user_id")
+  schedules_project schedules_project @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "subjects_subject_project_id_029b2766_fk_schedules_project_id")
+  rooms_room        rooms_room?       @relation(fields: [room_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "subjects_subject_room_id_7d015d26_fk_rooms_room_id")
+
+  @@unique([project_id, group_id, abbreviated_name], map: "subjects_subject_project_id_group_id_abbr_92c9b6fd_uniq")
+  @@index([group_id], map: "subjects_subject_group_id_7eb4df46")
+  @@index([owner_id], map: "subjects_subject_owner_id_9cde00d5")
+  @@index([project_id], map: "subjects_subject_project_id_029b2766")
+  @@index([room_id], map: "subjects_subject_room_id_7d015d26")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model teachers_teacher {
+  id                               BigInt                             @id @default(autoincrement())
+  name                             String                             @db.VarChar(255)
+  email                            String?                            @db.VarChar(254)
+  active                           Boolean
+  created_at                       DateTime                           @db.Timestamptz(6)
+  project_id                       BigInt?
+  updated_at                       DateTime                           @db.Timestamptz(6)
+  admission_date                   DateTime?                          @db.Date
+  color                            String                             @db.VarChar(7)
+  activity_hours                   DateTime?                          @db.Time(6)
+  displacement                     String                             @db.VarChar(20)
+  external_code                    String?                            @db.VarChar(100)
+  max_lessons_day                  Int
+  max_lessons_group                Int
+  max_lessons_level                Int
+  min_lessons_day                  Int
+  owner_id                         BigInt?
+  reduce_days                      Boolean
+  reduce_windows                   Boolean
+  short_name                       String                             @db.VarChar(50)
+  availability_updated_at          DateTime?                          @db.Timestamptz(6)
+  last_invited_at                  DateTime?                          @db.Timestamptz(6)
+  availability_teacheravailability availability_teacheravailability[]
+  lessons_lesson_teachers          lessons_lesson_teachers[]
+  solver_generatedscheduleentry    solver_generatedscheduleentry[]
+  accounts_user                    accounts_user?                     @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "teachers_teacher_owner_id_e876ed9c_fk_accounts_user_id")
+  schedules_project                schedules_project?                 @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "teachers_teacher_project_id_44f4717a_fk_schedules_project_id")
+
+  @@index([owner_id], map: "teachers_teacher_owner_id_e876ed9c")
+  @@index([project_id], map: "teachers_teacher_project_id_44f4717a")
+}
