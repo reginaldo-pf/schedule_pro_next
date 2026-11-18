@@ -22,10 +22,6 @@ import {
   LessonsWorkloadPdfDocument,
   type TeacherWorkloadGroup,
 } from "@/components/reports/pdf/LessonsWorkloadPdfDocument";
-import {
-  TeacherWorkloadCertificatePdfDocument,
-  type TeacherCertificateItem,
-} from "@/components/reports/pdf/TeacherWorkloadCertificatePdfDocument";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -147,6 +143,7 @@ export async function GET(req: NextRequest) {
           days={days}
           coursePages={pdfPages}
           generatedAt={generatedAt}
+          assetsBaseUrl={origin}
         />
       );
       const pdfBuffer = await streamToBuffer(stream);
@@ -203,6 +200,7 @@ export async function GET(req: NextRequest) {
           days={days}
           teacherPages={pdfPages}
           generatedAt={generatedAt}
+          assetsBaseUrl={origin}
         />
       );
       const pdfBuffer = await streamToBuffer(stream);
@@ -216,8 +214,8 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // 3. MATRIZ DE AULAS E CARGA HORÁRIA / 4. CERTIFICADO DE ATRIBUIÇÃO DOCENTE
-    if (type === "lessons" || type === "certificate") {
+    // 3. MATRIZ DE AULAS E CARGA HORÁRIA DOCENTE
+    if (type === "lessons") {
       const [groups, classes, teachersList, rooms, lessons] = await Promise.all(
         [
           prisma.groups_group.findMany({ where: { project_id: project.id } }),
@@ -316,58 +314,6 @@ export async function GET(req: NextRequest) {
         minute: "2-digit",
       });
 
-      if (type === "certificate") {
-        const coordinatorName = user
-          ? `${user.first_name || ""} ${user.last_name || ""}`.trim() ||
-            user.username
-          : "Coordenação Acadêmica";
-
-        const certItems: TeacherCertificateItem[] = await Promise.all(
-          teacherGroups.map(async (tg) => {
-            const token = makeReportVerifyToken({
-              type: "certificate",
-              projectId: projectNumId,
-              targetId: tg.teacherId,
-            });
-            const verifyUrl = `${origin}/reports/verify/${token}`;
-            const qrCodeBase64 = await generateQrDataUrl(verifyUrl);
-            const serial = makeDocumentSerial(
-              "CERT",
-              projectNumId,
-              tg.teacherId
-            );
-            return {
-              ...tg,
-              serial,
-              qrCodeBase64,
-              coordinatorName,
-            };
-          })
-        );
-
-        const stream = await renderToStream(
-          <TeacherWorkloadCertificatePdfDocument
-            projectHeader={{
-              name: project.name,
-              institution_name: project.institution_name,
-              academic_period: project.academic_period,
-            }}
-            items={certItems}
-            generatedAt={generatedAt}
-          />
-        );
-        const pdfBuffer = await streamToBuffer(stream);
-
-        return new NextResponse(new Uint8Array(pdfBuffer), {
-          status: 200,
-          headers: {
-            "Content-Type": "application/pdf",
-            "Content-Disposition": `inline; filename="certificado-carga-horaria-${projectNumId}.pdf"`,
-          },
-        });
-      }
-
-      // type === "lessons"
       const activeFilterLabels: string[] = [];
       if (groupId) {
         const g = groups.find((x) => Number(x.id) === groupId);
@@ -407,6 +353,7 @@ export async function GET(req: NextRequest) {
           generatedAt={generatedAt}
           serial={serial}
           qrCodeBase64={qrCodeBase64}
+          assetsBaseUrl={origin}
         />
       );
       const pdfBuffer = await streamToBuffer(stream);

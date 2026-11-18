@@ -262,11 +262,11 @@ export default async function ReportVerifyPage({
             <div>
               <div className="small text-uppercase fw-bold text-info mb-1">
                 <i className="bi bi-shield-fill-check me-1" />
-                Validação de Certificado e Matriz Docente • Schedule Pro
+                Validação de Carga Horária e Matriz Docente • Schedule Pro
               </div>
               <h4 className="fw-bold mb-0">
                 {teacher
-                  ? `Certificado de Atribuição Docente — ${teacher.name}`
+                  ? `Carga Horária Docente — ${teacher.name}`
                   : `Matriz Consolidada de Carga Horária — ${project.name}`}
               </h4>
             </div>
@@ -315,17 +315,6 @@ export default async function ReportVerifyPage({
                 Componentes Curriculares Registrados em Tempo Real
               </h6>
               <div className="d-flex gap-2">
-                {payload.targetId > 0 && (
-                  <a
-                    href={`/api/reports/pdf?type=certificate&projectId=${payload.projectId}&teacher=${payload.targetId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-dark btn-sm fw-semibold"
-                  >
-                    <i className="bi bi-award me-1" />
-                    Baixar Certificado PDF
-                  </a>
-                )}
                 <a
                   href={`/api/reports/pdf?type=lessons&projectId=${payload.projectId}${
                     payload.targetId > 0 ? `&teacher=${payload.targetId}` : ""

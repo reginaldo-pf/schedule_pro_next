@@ -133,18 +133,6 @@ export function ScheduleMatrixView({
             </div>
 
             <div className="d-flex flex-wrap align-items-center gap-2">
-              {mode === "teacher" && (
-                <a
-                  href={buildPdfUrl("certificate")}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-outline-dark btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-semibold"
-                >
-                  <i className="bi bi-award-fill text-warning" />
-                  <span>Emitir Certificado Docente (PDF)</span>
-                </a>
-              )}
-
               <a
                 href={buildPdfUrl()}
                 target="_blank"

@@ -301,6 +301,7 @@ export function ScheduleMatrixPdfDocument({
   coursePages = [],
   teacherPages = [],
   generatedAt,
+  assetsBaseUrl,
 }: {
   mode: "course" | "teacher";
   orientation: "portrait" | "landscape";
@@ -314,8 +315,24 @@ export function ScheduleMatrixPdfDocument({
   coursePages?: CourseReportPdfPage[];
   teacherPages?: TeacherReportPdfPage[];
   generatedAt: string;
+  assetsBaseUrl?: string;
 }) {
-  ensurePdfFontsRegistered();
+  ensurePdfFontsRegistered(assetsBaseUrl);
+
+  const list = mode === "course" ? coursePages : teacherPages;
+  if (list.length === 0) {
+    return (
+      <Document title="Relatório de Horários" author="Schedule Pro">
+        <Page size="A4" orientation={orientation} style={styles.page}>
+          <View style={{ padding: 40, alignItems: "center" }}>
+            <Text style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>
+              Nenhum horário encontrado para os filtros selecionados.
+            </Text>
+          </View>
+        </Page>
+      </Document>
+    );
+  }
 
   if (mode === "course") {
     return (
