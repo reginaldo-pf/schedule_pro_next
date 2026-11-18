@@ -87,15 +87,7 @@ function LoginFormContent() {
             </div>
 
             <div className="mb-4">
-              <div className="d-flex justify-content-between align-items-center">
-                <label className="form-label fw-semibold small">Senha</label>
-                <Link
-                  href="/accounts/forgot-password"
-                  className="small text-decoration-none fw-medium mb-2"
-                >
-                  Esqueceu sua senha?
-                </Link>
-              </div>
+              <label className="form-label fw-semibold small">Senha</label>
               <div className="input-group">
                 <span className="input-group-text bg-light">
                   <i className="bi bi-lock" />
