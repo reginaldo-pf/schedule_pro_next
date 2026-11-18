@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     `Este link é de uso exclusivo e expira em 48 horas.\n\n` +
     `Atenciosamente,\nEquipe Schedule Pro`;
 
-  const sent = await sendEmailViaBrevo({
+  const emailResult = await sendEmailViaBrevo({
     to: [teacher.email],
     subject,
     text,
@@ -67,9 +67,9 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     portalUrl,
-    sent,
-    message: sent
+    sent: emailResult.sent,
+    message: emailResult.sent
       ? `Convite enviado com sucesso para ${teacher.name} (${teacher.email})!`
-      : `Link gerado para ${teacher.name}! Copie o link do portal abaixo.`,
+      : `Link do Portal gerado para ${teacher.name}!`,
   });
 }

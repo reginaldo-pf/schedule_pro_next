@@ -22,7 +22,6 @@ export async function POST(request: Request) {
       },
     });
 
-    // Always return a safe message, and if user exists, send the reset email
     if (!user) {
       return NextResponse.json({
         ok: true,
@@ -77,17 +76,25 @@ export async function POST(request: Request) {
       </div>
     `;
 
-    await sendEmailViaBrevo({
+    const emailResult = await sendEmailViaBrevo({
       to: [user.email],
       subject,
       text,
       html,
     });
 
+    if (!emailResult.sent) {
+      console.info(`[PASSWORD RESET LINK GERADO] ${user.email} -> ${resetUrl}`);
+    }
+
     return NextResponse.json({
       ok: true,
-      message:
-        "Se houver uma conta ativa associada a este e-mail, você receberá um link para redefinir sua senha em instantes.",
+      emailSent: emailResult.sent,
+      // When the external email provider is not enabled/configured, provide direct resetUrl fallback
+      fallbackResetUrl: !emailResult.sent ? resetUrl : undefined,
+      message: emailResult.sent
+        ? "Enviamos um link de redefinição de senha para o seu e-mail."
+        : "Link de recuperação gerado! Como o provedor de e-mail (Brevo) está desativado neste ambiente, você pode acessar o link diretamente abaixo.",
     });
   } catch (err) {
     console.error("[FORGOT PASSWORD ERROR]", err);

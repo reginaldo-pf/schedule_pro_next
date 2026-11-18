@@ -14,6 +14,7 @@ function ForgotPasswordContent() {
   const [email, setEmail] = useState(initialEmail);
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [fallbackResetUrl, setFallbackResetUrl] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +29,11 @@ function ForgotPasswordContent() {
       const data = await res.json();
       if (res.ok && data.ok) {
         setSent(true);
-        showToast("Instruções de recuperação enviadas!", "success");
+        setFallbackResetUrl(data.fallbackResetUrl || null);
+        showToast(
+          data.message || "Instruções de recuperação geradas!",
+          "success"
+        );
       } else {
         showToast(data.message || "Erro ao solicitar recuperação.", "danger");
       }
@@ -44,7 +49,7 @@ function ForgotPasswordContent() {
     <div className="min-vh-100 d-flex align-items-center justify-content-center bg-body-tertiary p-3">
       <div
         className="card border-0 shadow-lg"
-        style={{ maxWidth: 450, width: "100%" }}
+        style={{ maxWidth: 460, width: "100%" }}
       >
         <div className="card-body p-4 p-md-5">
           <div className="text-center mb-4">
@@ -74,12 +79,42 @@ function ForgotPasswordContent() {
               <div className="mb-3 text-success">
                 <i className="bi bi-envelope-check-fill display-3" />
               </div>
-              <h5 className="fw-bold mb-2">Verifique sua Caixa de Entrada</h5>
-              <p className="text-muted small mb-4">
-                Se houver uma conta ativa associada a{" "}
-                <strong>{email}</strong>, enviamos um link exclusivo com validade
-                de <strong>1 hora</strong> para redefinir sua senha.
+              <h5 className="fw-bold mb-2">
+                {fallbackResetUrl
+                  ? "Link de Redefinição Gerado"
+                  : "Verifique sua Caixa de Entrada"}
+              </h5>
+              <p className="text-muted small mb-3">
+                {fallbackResetUrl ? (
+                  <>
+                    O link exclusivo de recuperação para{" "}
+                    <strong>{email}</strong> (válido por 1 hora) foi gerado.
+                    Como o envio externo de e-mail não está ativo neste
+                    ambiente, clique no botão abaixo para redefinir sua senha
+                    agora:
+                  </>
+                ) : (
+                  <>
+                    Se houver uma conta ativa associada a{" "}
+                    <strong>{email}</strong>, enviamos um link exclusivo com
+                    validade de <strong>1 hora</strong> para redefinir sua
+                    senha.
+                  </>
+                )}
               </p>
+
+              {fallbackResetUrl && (
+                <div className="mb-3">
+                  <Link
+                    href={fallbackResetUrl}
+                    className="btn btn-success w-100 py-2 fw-bold shadow-sm"
+                  >
+                    <i className="bi bi-key-fill me-2" />
+                    Redefinir Minha Senha Agora
+                  </Link>
+                </div>
+              )}
+
               <div className="d-flex flex-column gap-2">
                 <button
                   type="button"
@@ -88,11 +123,11 @@ function ForgotPasswordContent() {
                   onClick={handleSubmit}
                 >
                   <i className="bi bi-arrow-repeat me-1" />
-                  Reenviar E-mail
+                  Gerar / Enviar Novamente
                 </button>
                 <Link
                   href="/accounts/login"
-                  className="btn btn-primary btn-sm py-2 fw-bold"
+                  className="btn btn-light btn-sm py-2 text-secondary"
                 >
                   Voltar para o Login
                 </Link>
