@@ -2,7 +2,6 @@
 
 import React from "react";
 import Link from "next/link";
-import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import type { ShellProject } from "@/components/layout/AppShell";
 
 export function DashboardClient({
@@ -12,8 +11,9 @@ export function DashboardClient({
   activeClassesDisplay,
   usageDescription,
   groupsData,
+  subscriptionValid = true,
 }: {
-  activeProject: ShellProject | null;
+  activeProject: (ShellProject & { timezone?: string }) | null;
   totalProjects: number;
   totals: {
     total_groups: number;
@@ -36,6 +36,7 @@ export function DashboardClient({
     semester_lessons: number;
     semester_hours: number;
   }[];
+  subscriptionValid?: boolean;
 }) {
   const hasProject = !!activeProject;
 
@@ -49,9 +50,9 @@ export function DashboardClient({
       url: "/projects",
     },
     {
-      label: "Grupos / Cursos",
+      label: "Grupos",
       value: totals.total_groups,
-      description: "Cursos cadastrados",
+      description: "Grupos cadastrados",
       icon: "bi-diagram-3",
       iconClass: "icon-groups",
       url: hasProject ? "/groups" : null,
@@ -108,71 +109,117 @@ export function DashboardClient({
 
   return (
     <div>
-      <ModuleHeader
-        icon="bi-speedometer2"
-        title="Visão Geral do Sistema"
-        description={
-          activeProject
-            ? `${activeProject.institution_name} • ${activeProject.name} (${activeProject.academic_period})`
-            : "Selecione ou crie um projeto ativo para iniciar o planejamento"
-        }
-        projectName={activeProject?.name}
-        statLabel="Tempos Semanais"
-        statValue={totals.total_lesson_slots}
-        extraActions={
-          activeProject ? (
-            <div className="d-flex gap-2">
-              <Link
-                href="/builder"
-                className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-sm"
-              >
-                <i className="bi bi-calendar-week" />
-                <span>Construtor de Grade</span>
+      {!subscriptionValid && (
+        <div className="alert alert-warning d-flex align-items-center gap-3 mb-4 border-warning-subtle">
+          <i className="bi bi-exclamation-triangle-fill fs-4" />
+          <div>
+            <strong>Assinatura Inativa ou Expirada!</strong>
+            <p className="m-0 small">
+              Sua assinatura expirou ou foi desativada. Algumas funcionalidades
+              podem estar limitadas.{" "}
+              <Link href="/accounts/subscription" className="alert-link">
+                Regularizar agora
               </Link>
-              <Link
-                href="/reports"
-                className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-semibold"
-              >
-                <i className="bi bi-printer" />
-                <span>Relatórios</span>
-              </Link>
+              .
+            </p>
+          </div>
+        </div>
+      )}
+
+      {activeProject && (
+        <div className="card border-0 shadow-sm p-3 mb-4 bg-white">
+          <div className="row align-items-center g-3">
+            <div className="col-md-auto me-auto">
+              <div className="d-flex align-items-center gap-3">
+                <div
+                  className="bg-primary-subtle text-primary rounded-3 d-flex align-items-center justify-content-center"
+                  style={{ width: 44, height: 44 }}
+                >
+                  <i className="bi bi-briefcase fs-4" />
+                </div>
+                <div>
+                  <h5 className="mb-0 fw-bold text-dark">
+                    {activeProject.name}
+                  </h5>
+                  <p className="text-muted small m-0 d-flex flex-wrap gap-2 align-items-center">
+                    <span>
+                      <i className="bi bi-building me-1" />
+                      {activeProject.institution_name}
+                    </span>
+                    <span className="text-muted">•</span>
+                    <span>
+                      <i className="bi bi-calendar3 me-1" />
+                      {activeProject.academic_period}
+                    </span>
+                    <span className="text-muted">•</span>
+                    <span>
+                      <i className="bi bi-globe me-1" />
+                      {activeProject.timezone || "America/Fortaleza"}
+                    </span>
+                  </p>
+                </div>
+              </div>
             </div>
-          ) : (
-            <Link
-              href="/projects"
-              className="btn btn-primary btn-sm px-3 py-2 fw-bold"
-            >
-              <i className="bi bi-folder-plus me-1" />
-              Selecionar Projeto
-            </Link>
-          )
-        }
-      />
+
+            <div className="col-md-auto">
+              <div className="d-flex flex-wrap align-items-center gap-2">
+                <Link
+                  href="/groups"
+                  className="btn btn-sm btn-dark d-flex align-items-center gap-1"
+                >
+                  <i className="bi bi-plus-lg" /> Novo Curso
+                </Link>
+                <Link
+                  href="/teachers"
+                  className="btn btn-sm btn-outline-dark d-flex align-items-center gap-1"
+                >
+                  <i className="bi bi-plus-lg" /> Professor
+                </Link>
+                <Link
+                  href="/rooms"
+                  className="btn btn-sm btn-outline-dark d-flex align-items-center gap-1"
+                >
+                  <i className="bi bi-plus-lg" /> Sala
+                </Link>
+                <Link
+                  href="/lessons"
+                  className="btn btn-sm btn-outline-dark d-flex align-items-center gap-1"
+                >
+                  <i className="bi bi-plus-lg" /> Aula
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Metric Cards */}
-      <div className="row g-3 mb-4">
+      <div className="row g-3">
         {stats.map((item, idx) => {
           const cardContent = (
             <div className="dashboard-card dashboard-card-link shadow-sm h-100">
               <div className="dashboard-card-header">
                 <span className="dashboard-card-label">{item.label}</span>
-                <div className={`dashboard-card-icon ${item.iconClass}`}>
+                <span className={`dashboard-card-icon ${item.iconClass}`}>
                   <i className={`bi ${item.icon}`} />
-                </div>
+                </span>
               </div>
               <div>
-                <h3 className="dashboard-card-value">{item.value}</h3>
-                <span className="dashboard-card-description">
+                <h2 className="dashboard-card-value">{item.value}</h2>
+                <small className="dashboard-card-description">
                   {item.description}
-                </span>
+                </small>
               </div>
             </div>
           );
 
           return (
-            <div key={idx} className="col-sm-6 col-lg-3">
+            <div key={idx} className="col-6 col-md-4 col-xl-3">
               {item.url ? (
-                <Link href={item.url} className="text-decoration-none d-block h-100">
+                <Link
+                  href={item.url}
+                  className="text-decoration-none d-block h-100"
+                >
                   {cardContent}
                 </Link>
               ) : (
@@ -183,82 +230,111 @@ export function DashboardClient({
         })}
       </div>
 
-      {/* Semester Summary by Course / Group */}
-      {activeProject && (
-        <div className="card border-0 shadow-sm">
-          <div className="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
+      {/* Courses / Groups Summary Table */}
+      {activeProject ? (
+        <div className="card border-0 shadow-sm p-4 mt-4">
+          <div className="d-flex justify-content-between mb-4 pb-2 border-bottom">
             <div>
-              <h6 className="fw-bold mb-0">
-                <i className="bi bi-bar-chart-line text-primary me-2" />
-                Resumo Acadêmico por Curso / Grupo
-              </h6>
-              <small className="text-muted">
-                Estimativa baseada em 20 semanas letivas por semestre
-              </small>
+              <h5 className="mb-1 text-dark">
+                <i className="bi bi-journal-text text-primary me-2" />
+                Cursos / Grupos
+              </h5>
+              <p className="text-muted small m-0">
+                Resumo da carga horária e quantidade de aulas dos cursos
+                cadastrados
+              </p>
             </div>
-            <Link href="/groups" className="btn btn-sm btn-outline-primary">
-              Gerenciar Cursos
-            </Link>
           </div>
-          <div className="table-responsive">
-            <table className="table align-middle table-hover mb-0">
-              <thead className="table-light">
-                <tr>
-                  <th className="ps-4">Curso / Grupo</th>
-                  <th className="text-center">Turmas</th>
-                  <th className="text-center">Disciplinas</th>
-                  <th className="text-center">Aulas / Semana</th>
-                  <th className="text-center">Aulas / Semestre</th>
-                  <th className="text-center">Horas / Semestre</th>
-                  <th className="text-end pe-4">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {groupsData.length === 0 ? (
+
+          {groupsData.length > 0 ? (
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead className="table-light">
                   <tr>
-                    <td colSpan={7} className="text-center py-4 text-muted">
-                      Nenhum curso cadastrado neste projeto.
-                    </td>
+                    <th className="text-muted small fw-bold text-uppercase py-3">
+                      Curso / Grupo
+                    </th>
+                    <th className="text-muted small fw-bold text-uppercase py-3 text-center">
+                      Aulas Semanais
+                    </th>
+                    <th className="text-muted small fw-bold text-uppercase py-3 text-center">
+                      Aulas por Semestre
+                    </th>
+                    <th className="text-muted small fw-bold text-uppercase py-3 text-center">
+                      Horas por Semestre
+                    </th>
                   </tr>
-                ) : (
-                  groupsData.map((g) => (
-                    <tr key={g.id}>
-                      <td className="ps-4 fw-bold">{g.name}</td>
-                      <td className="text-center">
-                        <span className="badge bg-success-subtle text-success">
-                          {g.classes_count}
+                </thead>
+                <tbody>
+                  {groupsData.map((data) => (
+                    <tr key={data.id}>
+                      <td className="py-3">
+                        <div className="d-flex align-items-center gap-3">
+                          <span
+                            className="avatar-span bg-primary-subtle text-primary rounded-circle d-flex align-items-center justify-content-center"
+                            style={{ width: 38, height: 38 }}
+                          >
+                            <i className="bi bi-diagram-3 fs-5" />
+                          </span>
+                          <div>
+                            <span className="fw-bold text-dark d-block">
+                              {data.name}
+                            </span>
+                            <span className="text-muted small">
+                              {data.classes_count} turmas •{" "}
+                              {data.subjects_count} disciplinas
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="text-center py-3">
+                        <span className="badge bg-light text-dark border px-3 py-2 fs-6 fw-normal">
+                          {data.weekly_lessons}
                         </span>
                       </td>
-                      <td className="text-center">
-                        <span className="badge bg-danger-subtle text-danger">
-                          {g.subjects_count}
+                      <td className="text-center py-3">
+                        <span className="badge bg-secondary-subtle text-secondary px-3 py-2 fs-6 fw-normal">
+                          {data.semester_lessons}
                         </span>
                       </td>
-                      <td className="text-center fw-semibold">
-                        {g.weekly_lessons} tempos
-                      </td>
-                      <td className="text-center text-muted">
-                        {g.semester_lessons} aulas
-                      </td>
-                      <td className="text-center">
-                        <span className="badge bg-primary-subtle text-primary px-2 py-1">
-                          {g.semester_hours}h
+                      <td className="text-center py-3">
+                        <span className="badge bg-primary-subtle text-primary px-3 py-2 fs-6 fw-semibold">
+                          {data.semester_hours}h
                         </span>
-                      </td>
-                      <td className="text-end pe-4">
-                        <Link
-                          href={`/reports/course?group=${g.id}`}
-                          className="btn btn-sm btn-outline-secondary"
-                        >
-                          <i className="bi bi-file-earmark-text me-1" />
-                          Ver Grade
-                        </Link>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="text-center py-5 text-muted">
+              <i className="bi bi-journal-x fs-1 d-block mb-3 text-secondary" />
+              <p className="m-0">
+                Nenhum curso cadastrado ou sem aulas configuradas para este
+                projeto.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="row mt-4">
+          <div className="col-md-12">
+            <div className="card border-0 shadow-sm p-4 text-center py-5">
+              <h4 className="mb-3">Nenhum projeto ativo</h4>
+              <p className="text-muted mb-4">
+                Selecione um projeto existente ou crie um novo projeto para
+                começar a configurar o ambiente acadêmico.
+              </p>
+              <div className="d-flex justify-content-center gap-2">
+                <Link href="/projects" className="btn btn-outline-dark">
+                  Selecionar Projeto
+                </Link>
+                <Link href="/projects" className="btn btn-dark">
+                  Novo Projeto
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       )}

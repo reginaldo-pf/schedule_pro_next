@@ -149,7 +149,14 @@ export default async function DashboardPage() {
       breadcrumbs={[{ label: "Dashboard" }]}
     >
       <DashboardClient
-        activeProject={shellProject}
+        activeProject={
+          shellProject
+            ? {
+                ...shellProject,
+                timezone: activeProject?.timezone || "America/Fortaleza",
+              }
+            : null
+        }
         totalProjects={totalProjects}
         totals={totals}
         activeClassesDisplay={`${activeClassesCount} / ${maxClassesDisplay}`}
@@ -161,6 +168,7 @@ export default async function DashboardPage() {
             : "Sem plano ativo"
         }
         groupsData={groupsData}
+        subscriptionValid={shellSubscription ? shellSubscription.isValid : false}
       />
     </AppShell>
   );

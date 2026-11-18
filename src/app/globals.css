@@ -15,28 +15,30 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 0.9rem;
   color: #1e293b;
+  margin: 0;
+  padding: 0;
 }
 
 /* --- Layout --- */
 .app-wrapper {
-  display: flex;
+  display: block;
   width: 100%;
   min-height: 100vh;
 }
 
 .app-main {
-  flex: 1;
   margin-left: 260px;
   padding-top: 3.5rem;
-  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  min-width: 0;
+  width: calc(100% - 260px);
+  min-height: 100vh;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-sidebar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
   z-index: 1038;
   width: 260px;
   background-color: var(--sidebar-bg);
@@ -45,20 +47,22 @@ body {
   box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
 }
 
-.app-header {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 260px;
+.app-header,
+nav.app-header.navbar {
+  position: fixed !important;
+  top: 0 !important;
+  right: 0 !important;
+  left: 260px !important;
+  width: calc(100% - 260px) !important;
   z-index: 1037;
   height: 3.5rem;
-  background-color: rgba(255, 255, 255, 0.88);
+  background-color: rgba(255, 255, 255, 0.88) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid #e2e8f0;
   display: flex;
   align-items: center;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .app-header .sidebar-toggle-btn {
@@ -85,9 +89,12 @@ body {
   }
   .app-wrapper.sidebar-collapsed .app-main {
     margin-left: 70px;
+    width: calc(100% - 70px);
   }
-  .app-wrapper.sidebar-collapsed .app-header {
-    left: 70px;
+  .app-wrapper.sidebar-collapsed .app-header,
+  .app-wrapper.sidebar-collapsed nav.app-header.navbar {
+    left: 70px !important;
+    width: calc(100% - 70px) !important;
   }
   .app-wrapper.sidebar-collapsed .app-sidebar:hover {
     width: 260px;
@@ -439,9 +446,14 @@ body {
     transform: translateX(-100%);
     width: 260px !important;
   }
-  .app-main, .app-header {
+  .app-main {
     margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .app-header,
+  nav.app-header.navbar {
     left: 0 !important;
+    width: 100% !important;
   }
   .app-wrapper.sidebar-open .app-sidebar {
     transform: translateX(0);
@@ -491,6 +503,7 @@ body {
   }
   .app-main {
     margin-left: 0 !important;
+    width: 100% !important;
     padding-top: 0 !important;
   }
   body {
