@@ -56,6 +56,8 @@ export default async function PublicSchedulePage({
             days={days}
             coursePages={pages}
             generatedAt={generatedAt}
+            projectId={Number(project.id)}
+            selectedClass={Number(sc.id)}
           />
         </div>
       </div>
@@ -100,6 +102,8 @@ export default async function PublicSchedulePage({
             days={days}
             teacherPages={pages}
             generatedAt={generatedAt}
+            projectId={Number(project.id)}
+            selectedTeacher={Number(teacher.id)}
           />
         </div>
       </div>

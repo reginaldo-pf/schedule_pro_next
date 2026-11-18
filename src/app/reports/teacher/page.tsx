@@ -90,6 +90,9 @@ export default async function TeacherReportPage({
         days={days}
         teacherPages={pages}
         generatedAt={generatedAt}
+        projectId={Number(project.id)}
+        selectedGroup={groupId}
+        selectedTeacher={teacherId}
       />
     </AppShell>
   );

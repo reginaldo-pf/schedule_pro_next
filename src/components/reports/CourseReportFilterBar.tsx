@@ -70,6 +70,16 @@ export function CourseReportFilterBar({
               ))}
             </select>
           </div>
+          <div className="col-md-2 text-md-end">
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm w-100"
+              onClick={() => router.push("/reports/course")}
+            >
+              <i className="bi bi-x-circle me-1" />
+              Limpar
+            </button>
+          </div>
         </div>
       </div>
     </div>

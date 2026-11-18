@@ -94,6 +94,9 @@ export default async function CourseReportPage({
         days={days}
         coursePages={pages}
         generatedAt={generatedAt}
+        projectId={Number(project.id)}
+        selectedGroup={groupId}
+        selectedClass={classId}
       />
     </AppShell>
   );

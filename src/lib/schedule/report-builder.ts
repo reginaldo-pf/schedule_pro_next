@@ -192,9 +192,21 @@ export async function buildCourseReportPages({
         };
       }
 
+      const activeClassPeriodIds = new Set(
+        classEntries.map((e) => Number(e.period_id))
+      );
+      const activeClassShifts = new Set<string>();
+      for (const p of periods) {
+        if (activeClassPeriodIds.has(Number(p.id))) {
+          activeClassShifts.add(p.shift);
+        }
+      }
+
       const timelineRows: ReportTimelineRow[] = [];
       for (const p of periods) {
-        if (sc.shifts && sc.shifts.length > 0 && !sc.shifts.includes(p.shift)) {
+        if (activeClassShifts.size > 0) {
+          if (!activeClassShifts.has(p.shift)) continue;
+        } else if (sc.shifts && sc.shifts.length > 0 && !sc.shifts.includes(p.shift)) {
           continue;
         }
         timelineRows.push({
@@ -210,6 +222,16 @@ export async function buildCourseReportPages({
             order: p.order,
           },
         });
+      }
+
+      while (timelineRows.length > 0 && timelineRows[0].type === "interval") {
+        timelineRows.shift();
+      }
+      while (
+        timelineRows.length > 0 &&
+        timelineRows[timelineRows.length - 1].type === "interval"
+      ) {
+        timelineRows.pop();
       }
 
       const roomName =
@@ -372,6 +394,16 @@ export async function buildTeacherReportPages({
           },
         });
       }
+    }
+
+    while (timelineRows.length > 0 && timelineRows[0].type === "interval") {
+      timelineRows.shift();
+    }
+    while (
+      timelineRows.length > 0 &&
+      timelineRows[timelineRows.length - 1].type === "interval"
+    ) {
+      timelineRows.pop();
     }
 
     pages.push({

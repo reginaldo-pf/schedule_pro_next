@@ -496,21 +496,601 @@ nav.app-header.navbar {
   cursor: grabbing;
 }
 
+/* --- Report Sheet & A4 Simulator Styles --- */
+.report-preview-container {
+  background-color: #cbd5e1;
+  padding: 1.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 14px;
+  border: 1px solid #94a3b8;
+  box-shadow: inset 0 2px 8px 0 rgba(0, 0, 0, 0.08);
+  gap: 1.75rem;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.report-sheet {
+  background: #ffffff;
+  box-shadow: 0 16px 24px -5px rgba(15, 23, 42, 0.14), 0 6px 10px -5px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  border-radius: 4px;
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0 auto;
+  color: #1f2937;
+  overflow: hidden;
+}
+
+.report-sheet.portrait {
+  max-width: 210mm;
+  padding: 10mm 12mm;
+}
+
+.report-sheet.landscape {
+  max-width: 297mm;
+  padding: 8mm 10mm;
+}
+
+.report-header {
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.report-header-corp {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 2px solid #0f172a;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+
+.report-header-corp.theme-teacher {
+  border-bottom-color: #065f46;
+}
+
+.report-header-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.report-corp-badge {
+  display: inline-block;
+  background-color: #1e3a8a;
+  color: #ffffff;
+  font-size: 6.5pt;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.report-corp-badge.badge-teacher {
+  background-color: #065f46;
+}
+
+.report-corp-badge.badge-lessons {
+  background-color: #0284c7;
+}
+
+.report-serial-tag {
+  font-size: 6.8pt;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.report-entity-title {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #1e3a8a;
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+
+.report-entity-title.text-teacher {
+  color: #065f46;
+}
+
+.report-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 7.4pt;
+  color: #334155;
+}
+
+.report-meta-strip strong {
+  color: #0f172a;
+}
+
+.report-qr-box {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+  padding: 5px;
+  width: 175px;
+  flex-shrink: 0;
+}
+
+.report-qr-img {
+  width: 52px;
+  height: 52px;
+  display: block;
+  flex-shrink: 0;
+}
+
+.report-qr-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.report-qr-title {
+  font-size: 6.2pt;
+  font-weight: 700;
+  color: #0f172a;
+  text-transform: uppercase;
+  line-height: 1.15;
+  margin-bottom: 2px;
+}
+
+.report-qr-desc {
+  font-size: 5.8pt;
+  color: #475569;
+  line-height: 1.25;
+}
+
+.report-thead-corp th {
+  background: #0f172a !important;
+  color: #ffffff !important;
+  border-color: #334155 !important;
+  letter-spacing: 0.4px;
+}
+
+.report-thead-corp.thead-teacher th {
+  background: #064e3b !important;
+  border-color: #065f46 !important;
+}
+
+.report-time-col-head {
+  width: 74px;
+}
+
+.report-footer-corp {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-top: 1px solid #cbd5e1;
+  padding-top: 5px;
+  margin-top: 8px;
+  font-size: 6.8pt;
+  color: #64748b;
+}
+
+.report-footer-corp strong {
+  color: #334155;
+}
+
+.report-header.theme-teacher {
+  border-bottom-color: #16a34a;
+}
+
+.report-institution {
+  font-size: 12pt;
+  font-weight: 800;
+  color: #1e3a8a;
+  margin: 0 0 3px 0;
+  text-transform: uppercase;
+  letter-spacing: -0.3px;
+  line-height: 1.15;
+}
+
+.report-header.theme-teacher .report-institution {
+  color: #064e3b;
+}
+
+.report-subtitle {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 2px 0;
+  line-height: 1.2;
+}
+
+.report-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 8pt;
+  color: #475569;
+  margin-top: 3px;
+}
+
+.report-meta-left strong {
+  color: #0f172a;
+}
+
+.report-meta-right {
+  font-size: 7.5pt;
+  color: #64748b;
+  text-align: right;
+}
+
+.report-grid-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.report-grid-table th {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 5px 4px;
+  font-size: 7.8pt;
+  font-weight: 700;
+  text-align: center;
+  color: #334155;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.report-grid-table td {
+  border: 1px solid #cbd5e1;
+  vertical-align: top;
+  padding: 2.5px;
+  overflow: hidden;
+}
+
+.report-grid-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-time-col {
+  width: 74px;
+  background: #f8fafc !important;
+  text-align: center;
+  font-weight: 700;
+  font-size: 7.5pt;
+  color: #1e293b;
+  vertical-align: middle !important;
+  line-height: 1.15;
+  padding: 3px 2px !important;
+}
+
+.report-time-col span {
+  display: block;
+  color: #64748b;
+  font-weight: 400;
+  font-size: 6.5pt;
+  margin-top: 1px;
+}
+
+.report-interval-row td {
+  background: #f8fafc;
+  text-align: center;
+  vertical-align: middle !important;
+  padding: 3px 6px !important;
+  font-size: 7.2pt;
+  font-weight: 600;
+  color: #475569;
+}
+
+.report-entry-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-left: 3.5px solid #64748b;
+  border-radius: 3px;
+  padding: 3px 5px;
+  min-height: 42px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+}
+
+.report-subject-short {
+  font-size: 7.5pt;
+  font-weight: 800;
+  text-transform: uppercase;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-subject-name {
+  font-size: 7pt;
+  font-weight: 600;
+  color: #334155;
+  line-height: 1.15;
+  margin-top: 1px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.report-meta-primary {
+  font-size: 6.8pt;
+  color: #334155;
+  font-weight: 600;
+  line-height: 1.15;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-meta-primary.teacher-class {
+  color: #166534;
+  font-weight: 700;
+}
+
+.report-meta-secondary {
+  font-size: 6.5pt;
+  color: #64748b;
+  line-height: 1.15;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-empty-cell {
+  color: #cbd5e1;
+  text-align: center;
+  font-size: 8.5pt;
+  line-height: 1;
+  padding: 10px 0;
+  user-select: none;
+}
+
+/* Adaptive Density: Compact (9 to 13 rows or landscape 8+ rows) */
+.report-sheet.density-compact {
+  padding: 7mm 9mm;
+}
+.report-sheet.density-compact .report-header {
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+}
+.report-sheet.density-compact .report-institution {
+  font-size: 10.5pt;
+}
+.report-sheet.density-compact .report-subtitle {
+  font-size: 9pt;
+}
+.report-sheet.density-compact .report-grid-table th {
+  padding: 3.5px 2px;
+  font-size: 7.2pt;
+}
+.report-sheet.density-compact .report-grid-table td {
+  padding: 1.5px;
+}
+.report-sheet.density-compact .report-time-col {
+  width: 66px;
+  font-size: 7pt;
+}
+.report-sheet.density-compact .report-entry-card {
+  min-height: 30px;
+  padding: 2px 4px;
+}
+.report-sheet.density-compact .report-subject-short {
+  font-size: 7pt;
+}
+.report-sheet.density-compact .report-subject-name {
+  font-size: 6.5pt;
+  -webkit-line-clamp: 1;
+}
+.report-sheet.density-compact .report-meta-primary,
+.report-sheet.density-compact .report-meta-secondary {
+  font-size: 6.2pt;
+  margin-top: 1px;
+}
+.report-sheet.density-compact .report-empty-cell {
+  padding: 5px 0;
+  font-size: 7.5pt;
+}
+.report-sheet.density-compact .report-interval-row td {
+  padding: 2px 4px !important;
+  font-size: 6.6pt;
+}
+
+/* Adaptive Density: Ultra Compact (14+ rows or landscape 12+ rows) */
+.report-sheet.density-ultra {
+  padding: 5mm 7mm;
+}
+.report-sheet.density-ultra .report-header {
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+}
+.report-sheet.density-ultra .report-institution {
+  font-size: 9.5pt;
+}
+.report-sheet.density-ultra .report-subtitle {
+  font-size: 8.5pt;
+}
+.report-sheet.density-ultra .report-meta-row {
+  font-size: 7pt;
+  margin-top: 1px;
+}
+.report-sheet.density-ultra .report-grid-table th {
+  padding: 2px;
+  font-size: 6.8pt;
+}
+.report-sheet.density-ultra .report-grid-table td {
+  padding: 1px;
+}
+.report-sheet.density-ultra .report-time-col {
+  width: 60px;
+  font-size: 6.5pt;
+  padding: 1px !important;
+}
+.report-sheet.density-ultra .report-time-col span {
+  font-size: 5.8pt;
+  margin-top: 0;
+}
+.report-sheet.density-ultra .report-entry-card {
+  min-height: 22px;
+  padding: 1px 3px;
+}
+.report-sheet.density-ultra .report-subject-short {
+  font-size: 6.4pt;
+}
+.report-sheet.density-ultra .report-subject-name {
+  font-size: 6pt;
+  -webkit-line-clamp: 1;
+  margin-top: 0;
+}
+.report-sheet.density-ultra .report-meta-primary,
+.report-sheet.density-ultra .report-meta-secondary {
+  font-size: 5.8pt;
+  margin-top: 0;
+}
+.report-sheet.density-ultra .report-empty-cell {
+  padding: 2px 0;
+  font-size: 7pt;
+}
+.report-sheet.density-ultra .report-interval-row td {
+  padding: 1px 4px !important;
+  font-size: 6pt;
+}
+
+/* Workload / Lesson Matrix Report Table */
+.report-teacher-section {
+  margin-top: 12px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.report-teacher-banner {
+  margin: 0;
+  padding: 6px 10px;
+  background: #f1f5f9;
+  border-left: 4px solid #0284c7;
+  border-top: 1px solid #cbd5e1;
+  border-right: 1px solid #cbd5e1;
+  color: #0f172a;
+  font-size: 8.5pt;
+  font-weight: 700;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.report-matrix-table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.report-matrix-table th {
+  background: #0f172a;
+  border: 1px solid #334155;
+  padding: 5px 7px;
+  color: #ffffff;
+  font-size: 7.2pt;
+  font-weight: 700;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.report-matrix-table td {
+  border: 1px solid #cbd5e1;
+  padding: 5px 6px;
+  font-size: 8pt;
+  vertical-align: top;
+  line-height: 1.25;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.report-matrix-table tr {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
 /* --- Print Styles --- */
 @media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html, body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
   .no-print, .app-sidebar, .app-header, .global-progress-bar, .toast-container {
     display: none !important;
   }
-  .app-main {
-    margin-left: 0 !important;
+  .app-wrapper, .app-main, .app-content, .app-content > .container-fluid {
+    margin: 0 !important;
+    padding: 0 !important;
     width: 100% !important;
-    padding-top: 0 !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
   }
-  body {
-    background: #fff !important;
+  .report-preview-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    display: block !important;
+    width: 100% !important;
+  }
+  .report-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 3mm 4mm !important;
+    border: 1px solid #64748b !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  .report-sheet.report-sheet-flow {
+    border: none !important;
+    padding: 0 !important;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
   .print-page-break {
-    page-break-after: always;
-    break-after: page;
+    page-break-after: always !important;
+    break-after: page !important;
   }
 }
