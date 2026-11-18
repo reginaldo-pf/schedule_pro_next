@@ -1,34 +1,150 @@
+import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
 export interface SendEmailResult {
   sent: boolean;
-  provider: "smtp" | "resend" | "brevo" | "console";
+  provider: "resend" | "smtp" | "console";
+  id?: string;
   error?: string;
 }
 
-export async function sendEmailViaBrevo({
+const PUBLIC_UNVERIFIABLE_DOMAINS = [
+  "gmail.com",
+  "googlemail.com",
+  "hotmail.com",
+  "outlook.com",
+  "live.com",
+  "msn.com",
+  "yahoo.com",
+  "yahoo.com.br",
+  "icloud.com",
+  "uol.com.br",
+  "bol.com.br",
+  "terra.com.br",
+];
+
+function resolveResendFromAddress(): string {
+  const DEFAULT_RESEND_SENDER = "Schedule Pro <onboarding@resend.dev>";
+  const rawFrom = (
+    process.env.RESEND_FROM_EMAIL ||
+    process.env.DEFAULT_FROM_EMAIL ||
+    ""
+  ).trim();
+
+  if (!rawFrom) {
+    return DEFAULT_RESEND_SENDER;
+  }
+
+  // Extract email part if formatted as "Name <email@domain.com>"
+  const match = rawFrom.match(/<([^>]+)>/);
+  const emailPart = (match ? match[1] : rawFrom).trim().toLowerCase();
+  const domain = emailPart.split("@")[1] || "";
+
+  if (!domain || PUBLIC_UNVERIFIABLE_DOMAINS.includes(domain)) {
+    return DEFAULT_RESEND_SENDER;
+  }
+
+  if (rawFrom.includes("<") && rawFrom.includes(">")) {
+    return rawFrom;
+  }
+
+  return `Schedule Pro <${emailPart}>`;
+}
+
+export async function sendEmail({
   to,
   subject,
   text,
   html,
+  replyTo,
 }: {
   to: string[];
   subject: string;
   text?: string;
   html?: string;
+  replyTo?: string;
 }): Promise<SendEmailResult> {
-  const fromEmail =
-    process.env.DEFAULT_FROM_EMAIL || "noreply@schedulepro.com";
-  const resendKey =
+  const resendKey = (
     process.env.RESEND_API_KEY ||
     (process.env.EMAIL_HOST_PASSWORD?.startsWith("re_")
       ? process.env.EMAIL_HOST_PASSWORD
-      : "");
-  const brevoKey =
-    process.env.BREVO_API_KEY ||
-    (process.env.EMAIL_HOST_PASSWORD?.startsWith("xkeysib-")
-      ? process.env.EMAIL_HOST_PASSWORD
-      : "");
+      : "") ||
+    ""
+  ).trim();
+
+  // 1. Primary Provider: Official Resend SDK
+  if (resendKey) {
+    const resend = new Resend(resendKey);
+    const primaryFrom = resolveResendFromAddress();
+    const fallbackFrom = "Schedule Pro <onboarding@resend.dev>";
+
+    try {
+      const { data, error } = await resend.emails.send({
+        from: primaryFrom,
+        to,
+        subject,
+        html: html || (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
+        text: text || undefined,
+        ...(replyTo ? { replyTo } : {}),
+      });
+
+      if (!error && data?.id) {
+        return {
+          sent: true,
+          provider: "resend",
+          id: data.id,
+        };
+      }
+
+      // If custom domain isn't verified yet in Resend, retry with onboarding@resend.dev
+      if (error && primaryFrom !== fallbackFrom) {
+        console.warn(
+          `[RESEND] Remetente '${primaryFrom}' falhou (${error.message}). Tentando com '${fallbackFrom}'...`
+        );
+        const retry = await resend.emails.send({
+          from: fallbackFrom,
+          to,
+          subject,
+          html: html || (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
+          text: text || undefined,
+          ...(replyTo ? { replyTo } : {}),
+        });
+
+        if (!retry.error && retry.data?.id) {
+          return {
+            sent: true,
+            provider: "resend",
+            id: retry.data.id,
+          };
+        }
+
+        return {
+          sent: false,
+          provider: "resend",
+          error: retry.error?.message || error.message,
+        };
+      }
+
+      if (error) {
+        console.warn(`[RESEND ERROR] ${error.name}: ${error.message}`);
+        return {
+          sent: false,
+          provider: "resend",
+          error: error.message,
+        };
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[RESEND EXCEPTION] ${msg}`);
+      return {
+        sent: false,
+        provider: "resend",
+        error: msg,
+      };
+    }
+  }
+
+  // 2. Secondary Provider: SMTP (Nodemailer) if configured
   const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || "";
   const smtpPort = Number(
     process.env.EMAIL_PORT || process.env.SMTP_PORT || 587
@@ -40,14 +156,12 @@ export async function sendEmailViaBrevo({
     "";
   const smtpPass =
     process.env.SMTP_PASSWORD ||
-    (!process.env.EMAIL_HOST_PASSWORD?.startsWith("xkeysib-") &&
-    !process.env.EMAIL_HOST_PASSWORD?.startsWith("re_")
+    (!process.env.EMAIL_HOST_PASSWORD?.startsWith("re_")
       ? process.env.EMAIL_HOST_PASSWORD
       : "") ||
     process.env.EMAIL_PASS ||
     "";
 
-  // 1. Try SMTP (Nodemailer) if EMAIL_HOST + EMAIL_HOST_USER + password are set
   if (smtpHost && smtpUser && smtpPass) {
     try {
       const transporter = nodemailer.createTransport({
@@ -64,7 +178,7 @@ export async function sendEmailViaBrevo({
       });
 
       await transporter.sendMail({
-        from: fromEmail,
+        from: process.env.DEFAULT_FROM_EMAIL || smtpUser,
         to: to.join(", "),
         subject,
         text,
@@ -78,80 +192,7 @@ export async function sendEmailViaBrevo({
     }
   }
 
-  // 2. Try Resend HTTP API if RESEND_API_KEY is set
-  if (resendKey) {
-    try {
-      const res = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to,
-          subject,
-          text,
-          html,
-        }),
-      });
-
-      if (res.ok) {
-        return { sent: true, provider: "resend" };
-      }
-      const errBody = await res.text();
-      console.warn(`[RESEND WARNING] Status ${res.status}: ${errBody}`);
-    } catch (err: unknown) {
-      console.warn("[RESEND WARNING]", err);
-    }
-  }
-
-  // 3. Try Brevo HTTP API if BREVO_API_KEY / xkeysib-* is set
-  if (brevoKey) {
-    const payload: Record<string, unknown> = {
-      sender: { email: fromEmail },
-      to: to.map((email) => ({ email })),
-      subject,
-    };
-
-    if (html) {
-      payload.htmlContent = html;
-    } else if (text) {
-      payload.textContent = text;
-    }
-
-    try {
-      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-          "api-key": brevoKey,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        return { sent: true, provider: "brevo" };
-      }
-
-      const errText = await response.text();
-      console.warn(
-        `[BREVO API WARNING] A chave da API Brevo retornou Status ${response.status} (${errText}). Usando fallback de console/tela.`
-      );
-      return {
-        sent: false,
-        provider: "brevo",
-        error: `Brevo Status ${response.status}: ${errText}`,
-      };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[BREVO API WARNING]", msg);
-      return { sent: false, provider: "brevo", error: msg };
-    }
-  }
-
-  // 4. Console fallback when no active provider is configured
+  // 3. Console fallback
   console.info(
     `\n==================== [EMAIL CONSOLE FALLBACK] ====================\n` +
       `Para: ${to.join(", ")}\n` +
@@ -164,6 +205,9 @@ export async function sendEmailViaBrevo({
   return {
     sent: false,
     provider: "console",
-    error: "Nenhum provedor de e-mail ativo configurado.",
+    error: "RESEND_API_KEY não configurada.",
   };
 }
+
+// Alias for backwards compatibility
+export const sendEmailViaBrevo = sendEmail;
