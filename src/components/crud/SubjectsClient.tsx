@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 
 interface SubjectItem {
   id: number;
@@ -59,6 +60,18 @@ export function SubjectsClient({
     }
     return true;
   });
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const openCreate = () => {
     setCurrentIndex(null);
@@ -209,7 +222,7 @@ export function SubjectsClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((s, idx) => (
+                paginatedItems.map((s, idx) => (
                   <tr key={s.id}>
                     <td className="ps-4">
                       <div className="d-flex align-items-center gap-2">
@@ -250,7 +263,7 @@ export function SubjectsClient({
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-primary"
-                        onClick={() => openEdit(idx)}
+                        onClick={() => openEdit(startIndex + idx)}
                       >
                         <i className="bi bi-pencil-square me-1" />
                         Editar
@@ -262,6 +275,17 @@ export function SubjectsClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <CrudModal

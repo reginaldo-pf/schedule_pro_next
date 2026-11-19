@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 
 interface PeriodItem {
   id: number;
@@ -63,6 +64,18 @@ export function PeriodsClient({
   const filtered = periods.filter(
     (p) => !filterShift || p.shift === filterShift
   );
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const openCreate = () => {
     setCurrentIndex(null);
@@ -189,7 +202,7 @@ export function PeriodsClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((p, idx) => (
+                paginatedItems.map((p, idx) => (
                   <tr key={p.id}>
                     <td className="ps-4 fw-semibold">{p.order}º</td>
                     <td className="fw-bold">{p.name}</td>
@@ -214,7 +227,7 @@ export function PeriodsClient({
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-primary"
-                        onClick={() => openEdit(idx)}
+                        onClick={() => openEdit(startIndex + idx)}
                       >
                         <i className="bi bi-pencil-square me-1" />
                         Editar
@@ -226,6 +239,17 @@ export function PeriodsClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <CrudModal

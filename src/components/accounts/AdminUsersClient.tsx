@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 
 interface ManagedUser {
   id: number;
@@ -55,6 +56,18 @@ export function AdminUsersClient({
       u.username.toLowerCase().includes(query.toLowerCase()) ||
       u.email.toLowerCase().includes(query.toLowerCase())
   );
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const openEdit = (index: number) => {
     const u = filtered[index];
@@ -139,7 +152,7 @@ export function AdminUsersClient({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((u, idx) => (
+              {paginatedItems.map((u, idx) => (
                 <tr key={u.id}>
                   <td className="ps-4 fw-semibold">
                     {u.username}
@@ -174,7 +187,7 @@ export function AdminUsersClient({
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-primary"
-                      onClick={() => openEdit(idx)}
+                      onClick={() => openEdit(startIndex + idx)}
                     >
                       <i className="bi bi-pencil-square me-1" />
                       Editar
@@ -185,6 +198,17 @@ export function AdminUsersClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <CrudModal

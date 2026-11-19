@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 
 interface ProjectItem {
   id: number;
@@ -84,6 +85,18 @@ export function ProjectsClient({
     useState<ProjectItem | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("coordinator");
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(projects, 10);
 
   const openCreate = () => {
     setCurrentIndex(null);
@@ -280,7 +293,7 @@ export function ProjectsClient({
                   </td>
                 </tr>
               ) : (
-                projects.map((p, idx) => {
+                paginatedItems.map((p, idx) => {
                   const isActive = p.id === activeProjectId;
                   return (
                     <tr key={p.id}>
@@ -340,7 +353,7 @@ export function ProjectsClient({
                             <button
                               type="button"
                               className="btn btn-outline-primary"
-                              onClick={() => openEdit(idx)}
+                              onClick={() => openEdit(startIndex + idx)}
                             >
                               <i className="bi bi-pencil-square me-1" />
                               Editar
@@ -355,6 +368,17 @@ export function ProjectsClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       {/* Create / Edit Project Modal */}

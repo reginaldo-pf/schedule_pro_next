@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 
 interface LessonItem {
   id: number;
@@ -102,6 +103,18 @@ export function LessonsClient({
     }
     return true;
   });
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const openCreate = () => {
     setCurrentIndex(null);
@@ -347,7 +360,7 @@ export function LessonsClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((l, idx) => (
+                paginatedItems.map((l, idx) => (
                   <tr key={l.id}>
                     <td className="ps-4">
                       <div className="d-flex align-items-center gap-2">
@@ -386,7 +399,7 @@ export function LessonsClient({
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-primary"
-                        onClick={() => openEdit(idx)}
+                        onClick={() => openEdit(startIndex + idx)}
                       >
                         <i className="bi bi-pencil-square me-1" />
                         Editar
@@ -398,6 +411,17 @@ export function LessonsClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <CrudModal

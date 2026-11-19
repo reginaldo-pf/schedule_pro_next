@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 import { AvailabilityMatrixModal } from "@/components/availability/AvailabilityMatrixModal";
 
 interface TeacherItem {
@@ -70,6 +71,18 @@ export function TeachersClient({
       t.short_name.toLowerCase().includes(query.toLowerCase()) ||
       t.email.toLowerCase().includes(query.toLowerCase())
   );
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const openCreate = () => {
     setCurrentIndex(null);
@@ -232,7 +245,7 @@ export function TeachersClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((t, idx) => (
+                paginatedItems.map((t, idx) => (
                   <tr key={t.id}>
                     <td className="ps-4">
                       <div className="d-flex align-items-center gap-2">
@@ -327,7 +340,7 @@ export function TeachersClient({
                         <button
                           type="button"
                           className="btn btn-outline-primary"
-                          onClick={() => openEdit(idx)}
+                          onClick={() => openEdit(startIndex + idx)}
                         >
                           <i className="bi bi-pencil-square me-1" />
                           Editar
@@ -340,6 +353,17 @@ export function TeachersClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <CrudModal

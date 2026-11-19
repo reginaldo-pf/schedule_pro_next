@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
+import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 
 interface GroupItem {
   id: number;
@@ -31,6 +32,18 @@ export function GroupsClient({
   const filtered = groups.filter((g) =>
     g.name.toLowerCase().includes(query.toLowerCase())
   );
+
+  const {
+    page,
+    pageSize,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    paginatedItems,
+    setPage,
+    setPageSize,
+  } = usePagination(filtered, 10);
 
   const openCreate = () => {
     setCurrentIndex(null);
@@ -147,7 +160,7 @@ export function GroupsClient({
                   </td>
                 </tr>
               ) : (
-                filtered.map((g, idx) => (
+                paginatedItems.map((g, idx) => (
                   <tr key={g.id}>
                     <td className="ps-4 fw-bold">{g.name}</td>
                     <td className="text-center">
@@ -164,7 +177,7 @@ export function GroupsClient({
                       <button
                         type="button"
                         className="btn btn-sm btn-outline-primary"
-                        onClick={() => openEdit(idx)}
+                        onClick={() => openEdit(startIndex + idx)}
                       >
                         <i className="bi bi-pencil-square me-1" />
                         Editar
@@ -176,6 +189,17 @@ export function GroupsClient({
             </tbody>
           </table>
         </div>
+
+        <TablePagination
+          page={page}
+          pageSize={pageSize}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          startIndex={startIndex}
+          endIndex={endIndex}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
 
       <CrudModal
