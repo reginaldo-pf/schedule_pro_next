@@ -42,7 +42,7 @@ function resolvePostmarkToken(): string {
   return "";
 }
 
-function resolvePostmarkFromAddress(): string {
+function resolvePostmarkFromAddress(recipientEmail?: string): string {
   const raw = (
     process.env.POSTMARK_FROM_EMAIL ||
     process.env.DEFAULT_FROM_EMAIL ||
@@ -50,15 +50,28 @@ function resolvePostmarkFromAddress(): string {
     ""
   ).trim();
 
-  // Ignore onboarding@resend.dev for Postmark if DEFAULT_FROM_EMAIL has a real address
-  if (!raw || raw.includes("onboarding@resend.dev")) {
-    const def = (process.env.DEFAULT_FROM_EMAIL || "").trim();
-    if (def && !def.includes("onboarding@resend.dev")) {
-      return def;
+  // Support comma-separated list of verified Sender Signatures (e.g. "user@gmail.com,user@ifce.edu.br")
+  const senders = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s && !s.includes("onboarding@resend.dev"));
+
+  if (senders.length === 0) {
+    return "noreply@schedulepro.com";
+  }
+
+  if (recipientEmail && senders.length > 1) {
+    const recipientDomain = recipientEmail.split("@")[1]?.toLowerCase();
+    if (recipientDomain) {
+      const matched = senders.find((s) =>
+        s.toLowerCase().endsWith(`@${recipientDomain}`) ||
+        s.toLowerCase().includes(`@${recipientDomain}>`)
+      );
+      if (matched) return matched;
     }
   }
 
-  return raw || "noreply@schedulepro.com";
+  return senders[0];
 }
 
 function resolveResendFromAddress(): string {
@@ -73,16 +86,17 @@ function resolveResendFromAddress(): string {
     return DEFAULT_RESEND_SENDER;
   }
 
-  const match = rawFrom.match(/<([^>]+)>/);
-  const emailPart = (match ? match[1] : rawFrom).trim().toLowerCase();
+  const firstSender = rawFrom.split(",")[0].trim();
+  const match = firstSender.match(/<([^>]+)>/);
+  const emailPart = (match ? match[1] : firstSender).trim().toLowerCase();
   const domain = emailPart.split("@")[1] || "";
 
   if (!domain || PUBLIC_UNVERIFIABLE_DOMAINS.includes(domain)) {
     return DEFAULT_RESEND_SENDER;
   }
 
-  if (rawFrom.includes("<") && rawFrom.includes(">")) {
-    return rawFrom;
+  if (firstSender.includes("<") && firstSender.includes(">")) {
+    return firstSender;
   }
 
   return `Schedule Pro <${emailPart}>`;
@@ -101,10 +115,68 @@ export async function sendEmail({
   html?: string;
   replyTo?: string;
 }): Promise<SendEmailResult> {
-  // 1. Primary Provider: Postmark HTTP API (X-Postmark-Server-Token)
+  let lastError = "";
+  let lastProvider: SendEmailResult["provider"] = "console";
+
+  // 1. Primary Provider: SMTP (Nodemailer - e.g. Gmail App Password has NO domain restrictions)
+  const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || "";
+  const smtpPort = Number(
+    process.env.EMAIL_PORT || process.env.SMTP_PORT || 587
+  );
+  const smtpUser =
+    process.env.EMAIL_HOST_USER ||
+    process.env.EMAIL_USER ||
+    process.env.SMTP_USER ||
+    "";
+  const smtpPass =
+    process.env.SMTP_PASSWORD ||
+    (!process.env.EMAIL_HOST_PASSWORD?.startsWith("re_") &&
+    !UUID_REGEX.test(process.env.EMAIL_HOST_PASSWORD || "")
+      ? process.env.EMAIL_HOST_PASSWORD
+      : "") ||
+    process.env.EMAIL_PASS ||
+    "";
+
+  if (smtpHost && smtpUser && smtpPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass,
+        },
+        tls: {
+          rejectUnauthorized: false,
+        },
+      });
+
+      const fromAddr =
+        (process.env.DEFAULT_FROM_EMAIL || "").split(",")[0].trim() || smtpUser;
+
+      await transporter.sendMail({
+        from: fromAddr,
+        to: to.join(", "),
+        subject,
+        text,
+        html,
+        ...(replyTo ? { replyTo } : {}),
+      });
+
+      return { sent: true, provider: "smtp" };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[SMTP WARNING] Falha no envio SMTP: ${msg}`);
+      lastError = `SMTP: ${msg}`;
+      lastProvider = "smtp";
+    }
+  }
+
+  // 2. Postmark HTTP API (X-Postmark-Server-Token)
   const postmarkToken = resolvePostmarkToken();
   if (postmarkToken) {
-    const fromEmail = resolvePostmarkFromAddress();
+    const fromEmail = resolvePostmarkFromAddress(to[0]);
     try {
       const response = await fetch("https://api.postmarkapp.com/email", {
         method: "POST",
@@ -139,23 +211,17 @@ export async function sendEmail({
       console.warn(
         `[POSTMARK WARNING] ErrorCode ${data.ErrorCode}: ${data.Message}`
       );
-      return {
-        sent: false,
-        provider: "postmark",
-        error: `Postmark (${data.ErrorCode}): ${data.Message}`,
-      };
+      lastError = `Postmark (${data.ErrorCode}): ${data.Message}`;
+      lastProvider = "postmark";
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[POSTMARK EXCEPTION] ${msg}`);
-      return {
-        sent: false,
-        provider: "postmark",
-        error: msg,
-      };
+      lastError = msg;
+      lastProvider = "postmark";
     }
   }
 
-  // 2. Secondary Provider: Official Resend SDK (re_*)
+  // 3. Official Resend SDK (re_*)
   const resendKey = (
     (process.env.RESEND_API_KEY?.startsWith("re_")
       ? process.env.RESEND_API_KEY
@@ -211,76 +277,20 @@ export async function sendEmail({
           };
         }
 
-        return {
-          sent: false,
-          provider: "resend",
-          error: retry.error?.message || error.message,
-        };
-      }
-
-      if (error) {
-        return {
-          sent: false,
-          provider: "resend",
-          error: error.message,
-        };
+        if (!lastError) {
+          lastError = retry.error?.message || error.message;
+          lastProvider = "resend";
+        }
+      } else if (error && !lastError) {
+        lastError = error.message;
+        lastProvider = "resend";
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      return {
-        sent: false,
-        provider: "resend",
-        error: msg,
-      };
-    }
-  }
-
-  // 3. Tertiary Provider: SMTP (Nodemailer)
-  const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || "";
-  const smtpPort = Number(
-    process.env.EMAIL_PORT || process.env.SMTP_PORT || 587
-  );
-  const smtpUser =
-    process.env.EMAIL_HOST_USER ||
-    process.env.EMAIL_USER ||
-    process.env.SMTP_USER ||
-    "";
-  const smtpPass =
-    process.env.SMTP_PASSWORD ||
-    (!process.env.EMAIL_HOST_PASSWORD?.startsWith("re_") &&
-    !UUID_REGEX.test(process.env.EMAIL_HOST_PASSWORD || "")
-      ? process.env.EMAIL_HOST_PASSWORD
-      : "") ||
-    process.env.EMAIL_PASS ||
-    "";
-
-  if (smtpHost && smtpUser && smtpPass) {
-    try {
-      const transporter = nodemailer.createTransport({
-        host: smtpHost,
-        port: smtpPort,
-        secure: smtpPort === 465,
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-        tls: {
-          rejectUnauthorized: false,
-        },
-      });
-
-      await transporter.sendMail({
-        from: process.env.DEFAULT_FROM_EMAIL || smtpUser,
-        to: to.join(", "),
-        subject,
-        text,
-        html,
-      });
-
-      return { sent: true, provider: "smtp" };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[SMTP WARNING] Falha no envio SMTP: ${msg}`);
+      if (!lastError) {
+        lastError = msg;
+        lastProvider = "resend";
+      }
     }
   }
 
@@ -296,8 +306,8 @@ export async function sendEmail({
 
   return {
     sent: false,
-    provider: "console",
-    error: "Nenhum provedor de e-mail ativo configurado.",
+    provider: lastProvider,
+    error: lastError || "Nenhum provedor de e-mail ativo configurado.",
   };
 }
 
