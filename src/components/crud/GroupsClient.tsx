@@ -208,7 +208,7 @@ export function GroupsClient({
           currentIndex !== null ? `Editar Curso: ${form.name}` : "Novo Curso / Grupo"
         }
         icon="bi-collection"
-        size="md"
+        size="lg"
         isEditing={currentIndex !== null}
         hasPrev={currentIndex !== null && currentIndex > 0}
         hasNext={currentIndex !== null && currentIndex < filtered.length - 1}

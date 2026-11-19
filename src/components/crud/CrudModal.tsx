@@ -138,12 +138,12 @@ export function CrudModal({
               <div className="modal-body p-4">{children}</div>
 
               {/* Standardized Multi-Action Footer */}
-              <div className="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>
+              <div className="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between align-items-center flex-nowrap gap-2 overflow-x-auto">
+                <div className="flex-shrink-0">
                   {isEditing && onDelete && (
                     <button
                       type="button"
-                      className="btn btn-outline-danger btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 text-nowrap"
+                      className="btn btn-outline-danger btn-sm px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap"
                       disabled={submittingAction !== null}
                       onClick={handleDelete}
                     >
@@ -157,10 +157,10 @@ export function CrudModal({
                   )}
                 </div>
 
-                <div className="d-flex flex-wrap align-items-center gap-2 ms-auto">
+                <div className="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                   <button
                     type="button"
-                    className="btn btn-light btn-sm px-3 py-2 text-nowrap"
+                    className="btn btn-light border btn-sm px-3 py-1 text-nowrap"
                     disabled={submittingAction !== null}
                     onClick={onClose}
                   >
@@ -169,33 +169,35 @@ export function CrudModal({
 
                   <button
                     type="button"
-                    className="btn btn-outline-primary btn-sm px-3 py-2 d-inline-flex align-items-center gap-1 text-nowrap"
+                    className="btn btn-outline-primary btn-sm px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap"
                     disabled={submittingAction !== null}
                     onClick={() => handleAction("save_and_add_another")}
                   >
-                    {submittingAction === "save_and_add_another" && (
+                    {submittingAction === "save_and_add_another" ? (
                       <span className="spinner-border spinner-border-sm me-1" />
+                    ) : (
+                      <i className="bi bi-plus-circle" />
                     )}
-                    <i className="bi bi-plus-circle" />
                     <span>Salvar e Adicionar Outro</span>
                   </button>
 
                   <button
                     type="button"
-                    className="btn btn-outline-secondary btn-sm px-3 py-2 d-inline-flex align-items-center gap-1 text-nowrap"
+                    className="btn btn-outline-secondary btn-sm px-2 py-1 d-inline-flex align-items-center gap-1 text-nowrap"
                     disabled={submittingAction !== null}
                     onClick={() => handleAction("save_and_continue")}
                   >
-                    {submittingAction === "save_and_continue" && (
+                    {submittingAction === "save_and_continue" ? (
                       <span className="spinner-border spinner-border-sm me-1" />
+                    ) : (
+                      <i className="bi bi-arrow-repeat" />
                     )}
-                    <i className="bi bi-arrow-repeat" />
                     <span>Salvar e Continuar</span>
                   </button>
 
                   <button
                     type="submit"
-                    className="btn btn-primary btn-sm px-4 py-2 fw-bold d-inline-flex align-items-center gap-1 shadow-sm text-nowrap"
+                    className="btn btn-primary btn-sm px-3 py-1 fw-semibold d-inline-flex align-items-center gap-1 shadow-sm text-nowrap"
                     disabled={submittingAction !== null}
                   >
                     {submittingAction === "save" ? (
