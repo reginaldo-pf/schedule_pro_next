@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma, parseTimeToDate } from "@/lib/prisma";
-import { getCurrentUser, getActiveProject } from "@/lib/auth";
+import {
+  getCurrentUser,
+  getActiveProject,
+  hashDjangoPassword,
+  generateUserConfirmationToken,
+} from "@/lib/auth";
 import { PlanService } from "@/lib/services/access-control";
+import { sendUserConfirmationEmail } from "@/lib/email";
 
 export async function POST(
   request: Request,
@@ -37,6 +43,127 @@ export async function POST(
         ok: true,
         id: Number(plan.id),
         message: `Plano ${plan.name} criado com sucesso.`,
+      });
+    }
+
+    if (module === "users") {
+      if (!user.is_superuser) {
+        return NextResponse.json({ ok: false, message: "Sem permissão." }, { status: 403 });
+      }
+
+      const username = (body.username || "").trim();
+      const email = (body.email || "").trim().toLowerCase();
+      const firstName = (body.first_name || "").trim();
+      const lastName = (body.last_name || "").trim();
+      const rawPassword = (body.password || "").trim();
+      const sendConfirmation = body.send_confirmation_email !== false;
+
+      if (!username || !email) {
+        return NextResponse.json(
+          { ok: false, message: "Nome de usuário e e-mail são obrigatórios." },
+          { status: 400 }
+        );
+      }
+
+      if (rawPassword && rawPassword.length < 6) {
+        return NextResponse.json(
+          { ok: false, message: "A senha deve ter pelo menos 6 caracteres." },
+          { status: 400 }
+        );
+      }
+
+      const existing = await prisma.accounts_user.findFirst({
+        where: {
+          OR: [
+            { username: { equals: username, mode: "insensitive" } },
+            { email: { equals: email, mode: "insensitive" } },
+          ],
+        },
+      });
+
+      if (existing) {
+        return NextResponse.json(
+          { ok: false, message: "Nome de usuário ou e-mail já está cadastrado." },
+          { status: 400 }
+        );
+      }
+
+      const passwordHash = rawPassword
+        ? hashDjangoPassword(rawPassword)
+        : "!pending_confirmation";
+
+      const createdUser = await prisma.accounts_user.create({
+        data: {
+          username,
+          email,
+          first_name: firstName,
+          last_name: lastName,
+          password: passwordHash,
+          profile: body.profile || "coordinator",
+          is_active: Boolean(body.is_active),
+          is_staff: Boolean(body.is_staff),
+          is_superuser: Boolean(body.is_superuser),
+          date_joined: now,
+          created_at: now,
+          updated_at: now,
+        },
+      });
+
+      if (body.plan_id) {
+        const planId = BigInt(body.plan_id);
+        const planObj = await prisma.plans_plan.findUnique({ where: { id: planId } });
+        const expiresAt =
+          planObj && planObj.duration_days > 0
+            ? new Date(now.getTime() + planObj.duration_days * 24 * 60 * 60 * 1000)
+            : null;
+        await prisma.plans_subscription.create({
+          data: {
+            user_id: createdUser.id,
+            plan_id: planId,
+            active: body.subscription_active !== false,
+            starts_at: now,
+            expires_at: expiresAt,
+            created_at: now,
+            updated_at: now,
+          },
+        });
+      } else {
+        await PlanService.createTrialSubscription(createdUser.id);
+      }
+
+      let confirmUrl: string | undefined;
+      let emailSent = false;
+      let emailNotice = "";
+
+      if (sendConfirmation) {
+        const token = await generateUserConfirmationToken(
+          Number(createdUser.id),
+          createdUser.email
+        );
+        const origin = new URL(request.url).origin;
+        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(/\/$/, "");
+        confirmUrl = `${siteUrl}/accounts/confirm/${token}`;
+
+        const emailRes = await sendUserConfirmationEmail({
+          toEmail: createdUser.email,
+          username: createdUser.username,
+          firstName: createdUser.first_name || undefined,
+          confirmUrl,
+          tempPassword: rawPassword || undefined,
+          replyTo: user.email || undefined,
+        });
+        emailSent = emailRes.sent;
+        emailNotice = emailRes.sent
+          ? ` E-mail de confirmação enviado para ${createdUser.email}.`
+          : ` Link de confirmação gerado (${emailRes.error || "copie o link na lista de usuários"}).`;
+      }
+
+      return NextResponse.json({
+        ok: true,
+        id: Number(createdUser.id),
+        confirmUrl,
+        emailSent,
+        message: `Usuário ${createdUser.username} criado com sucesso!${emailNotice}`,
       });
     }
 
@@ -370,17 +497,54 @@ export async function PUT(
       if (!user.is_superuser) {
         return NextResponse.json({ ok: false, message: "Sem permissão." }, { status: 403 });
       }
-      await prisma.accounts_user.update({
+
+      const username = (body.username || "").trim();
+      const email = (body.email || "").trim().toLowerCase();
+      const rawPassword = (body.password || "").trim();
+
+      if (!username || !email) {
+        return NextResponse.json(
+          { ok: false, message: "Nome de usuário e e-mail são obrigatórios." },
+          { status: 400 }
+        );
+      }
+
+      if (rawPassword && rawPassword.length < 6) {
+        return NextResponse.json(
+          { ok: false, message: "A nova senha deve ter pelo menos 6 caracteres." },
+          { status: 400 }
+        );
+      }
+
+      const duplicate = await prisma.accounts_user.findFirst({
+        where: {
+          id: { not: id },
+          OR: [
+            { username: { equals: username, mode: "insensitive" } },
+            { email: { equals: email, mode: "insensitive" } },
+          ],
+        },
+      });
+
+      if (duplicate) {
+        return NextResponse.json(
+          { ok: false, message: "Nome de usuário ou e-mail já pertence a outra conta." },
+          { status: 400 }
+        );
+      }
+
+      const updatedUser = await prisma.accounts_user.update({
         where: { id },
         data: {
-          username: (body.username || "").trim(),
-          email: (body.email || "").trim().toLowerCase(),
+          username,
+          email,
           first_name: (body.first_name || "").trim(),
           last_name: (body.last_name || "").trim(),
           profile: body.profile || "coordinator",
           is_active: Boolean(body.is_active),
           is_staff: Boolean(body.is_staff),
           is_superuser: Boolean(body.is_superuser),
+          ...(rawPassword ? { password: hashDjangoPassword(rawPassword) } : {}),
           updated_at: now,
         },
       });
@@ -414,10 +578,35 @@ export async function PUT(
         }
       }
 
+      let confirmUrl: string | undefined;
+      let emailNotice = "";
+      if (body.send_confirmation_email) {
+        const token = await generateUserConfirmationToken(
+          Number(updatedUser.id),
+          updatedUser.email
+        );
+        const origin = new URL(request.url).origin;
+        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(/\/$/, "");
+        confirmUrl = `${siteUrl}/accounts/confirm/${token}`;
+
+        const emailRes = await sendUserConfirmationEmail({
+          toEmail: updatedUser.email,
+          username: updatedUser.username,
+          firstName: updatedUser.first_name || undefined,
+          confirmUrl,
+          tempPassword: rawPassword || undefined,
+          replyTo: user.email || undefined,
+        });
+        emailNotice = emailRes.sent
+          ? ` E-mail de confirmação enviado para ${updatedUser.email}.`
+          : ` Link de confirmação gerado.`;
+      }
+
       return NextResponse.json({
         ok: true,
         id: Number(id),
-        message: "Usuário atualizado com sucesso.",
+        confirmUrl,
+        message: `Usuário atualizado com sucesso.${emailNotice}`,
       });
     }
 
@@ -636,6 +825,76 @@ export async function DELETE(
     const id = BigInt(idParam);
 
     switch (module) {
+      case "users": {
+        if (!user.is_superuser) {
+          return NextResponse.json(
+            { ok: false, message: "Sem permissão." },
+            { status: 403 }
+          );
+        }
+        if (id === user.id) {
+          return NextResponse.json(
+            {
+              ok: false,
+              message: "Você não pode excluir sua própria conta de administrador.",
+            },
+            { status: 400 }
+          );
+        }
+
+        const ownedProjects = await prisma.schedules_project.count({
+          where: { owner_id: id },
+        });
+        if (ownedProjects > 0) {
+          return NextResponse.json(
+            {
+              ok: false,
+              message: `Este usuário é proprietário de ${ownedProjects} projeto(s). Exclua ou transfira os projetos antes de remover o usuário.`,
+            },
+            { status: 400 }
+          );
+        }
+
+        await prisma.$transaction([
+          prisma.plans_subscription.deleteMany({ where: { user_id: id } }),
+          prisma.acl_membership.deleteMany({ where: { user_id: id } }),
+          prisma.schedules_projectparticipant.deleteMany({ where: { user_id: id } }),
+          prisma.accounts_user_groups.deleteMany({ where: { user_id: id } }),
+          prisma.accounts_user_user_permissions.deleteMany({ where: { user_id: id } }),
+          prisma.django_admin_log.deleteMany({ where: { user_id: id } }),
+          prisma.groups_group.updateMany({
+            where: { owner_id: id },
+            data: { owner_id: null },
+          }),
+          prisma.rooms_room.updateMany({
+            where: { owner_id: id },
+            data: { owner_id: null },
+          }),
+          prisma.subjects_subject.updateMany({
+            where: { owner_id: id },
+            data: { owner_id: null },
+          }),
+          prisma.teachers_teacher.updateMany({
+            where: { owner_id: id },
+            data: { owner_id: null },
+          }),
+          prisma.classes_schoolclass.updateMany({
+            where: { responsible_id: id },
+            data: { responsible_id: null },
+          }),
+          prisma.solver_schedulegenerationrun.updateMany({
+            where: { created_by_id: id },
+            data: { created_by_id: null },
+          }),
+          prisma.accounts_user.delete({ where: { id } }),
+        ]);
+
+        return NextResponse.json({
+          ok: true,
+          message: "Usuário removido com sucesso.",
+        });
+      }
+
       case "groups": {
         await prisma.$transaction([
           prisma.solver_generatedscheduleentry.deleteMany({

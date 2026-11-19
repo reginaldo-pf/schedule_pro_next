@@ -312,3 +312,127 @@ export async function sendEmail({
 }
 
 export const sendEmailViaBrevo = sendEmail;
+
+export async function sendUserConfirmationEmail({
+  toEmail,
+  username,
+  firstName,
+  confirmUrl,
+  tempPassword,
+  replyTo,
+}: {
+  toEmail: string;
+  username: string;
+  firstName?: string;
+  confirmUrl: string;
+  tempPassword?: string;
+  replyTo?: string;
+}): Promise<SendEmailResult> {
+  const displayName = firstName ? `${firstName} (${username})` : username;
+  const subject = `[Schedule Pro] Confirmação de Conta e Acesso - ${username}`;
+
+  const passwordNoteText = tempPassword
+    ? `\nSua senha inicial de acesso foi definida como: ${tempPassword}\n(Você também poderá definir uma nova senha na tela de confirmação).\n`
+    : `\nNa página de confirmação, você poderá definir sua senha de acesso ao sistema.\n`;
+
+  const text =
+    `Olá, ${displayName}.\n\n` +
+    `Uma conta foi criada para você na plataforma Schedule Pro.\n` +
+    `Usuário: ${username}\n` +
+    `E-mail: ${toEmail}\n` +
+    passwordNoteText +
+    `\nPara confirmar seu e-mail e ativar sua conta, acesse o link abaixo:\n\n` +
+    `${confirmUrl}\n\n` +
+    `Este link é válido por 72 horas.\n\n` +
+    `Atenciosamente,\nEquipe Schedule Pro`;
+
+  const passwordNoteHtml = tempPassword
+    ? `
+      <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:16px 0;">
+        <div style="font-size:13px;color:#1e3a8a;">
+          <strong>Usuário:</strong> ${username}<br/>
+          <strong>Senha inicial:</strong> <code style="background:#dbeafe;padding:2px 6px;border-radius:4px;">${tempPassword}</code>
+        </div>
+        <div style="font-size:12px;color:#475569;margin-top:4px;">
+          Você poderá manter esta senha ou definir uma nova senha ao confirmar sua conta.
+        </div>
+      </div>`
+    : `
+      <div style="background-color:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:12px 16px;margin:16px 0;">
+        <div style="font-size:13px;color:#1e3a8a;">
+          <strong>Usuário:</strong> ${username}<br/>
+          <strong>E-mail:</strong> ${toEmail}
+        </div>
+        <div style="font-size:12px;color:#475569;margin-top:4px;">
+          Ao acessar o link de confirmação abaixo, você poderá definir sua senha de acesso.
+        </div>
+      </div>`;
+
+  const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Segoe UI',Inter,Arial,sans-serif;color:#0f172a;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:32px 16px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;background-color:#ffffff;border-radius:10px;overflow:hidden;border:1px solid #cbd5e1;box-shadow:0 4px 12px rgba(15,23,42,0.06);">
+          <tr>
+            <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);padding:24px 32px;color:#ffffff;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;margin-bottom:4px;">
+                Schedule Pro • Gestão Acadêmica
+              </div>
+              <h2 style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">
+                Confirmação de Conta de Usuário
+              </h2>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 32px;">
+              <p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#1e293b;">
+                Olá, <strong>${displayName}</strong>,
+              </p>
+              <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:#334155;">
+                Sua conta de acesso ao <strong>Schedule Pro</strong> foi cadastrada pela administração do sistema. Para validar seu endereço de e-mail e ativar seu acesso, confirme seu cadastro clicando no botão abaixo:
+              </p>
+              ${passwordNoteHtml}
+              <div style="text-align:center;margin:28px 0;">
+                <a href="${confirmUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#1e3a8a;color:#ffffff;text-decoration:none;font-weight:700;font-size:14.5px;padding:13px 28px;border-radius:6px;">
+                  Confirmar Minha Conta
+                </a>
+              </div>
+              <div style="background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:12px 16px;margin-top:20px;">
+                <div style="font-size:12px;color:#64748b;margin-bottom:4px;">
+                  Ou copie e cole o link abaixo no seu navegador:
+                </div>
+                <div style="font-size:12px;color:#1e3a8a;word-break:break-all;">
+                  ${confirmUrl}
+                </div>
+              </div>
+              <p style="margin:20px 0 0;font-size:12.5px;color:#64748b;">
+                * Este link de confirmação é individual e válido por 72 horas.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;font-size:12px;color:#64748b;text-align:center;">
+              Enviado via <strong>Schedule Pro</strong>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+
+  return await sendEmail({
+    to: [toEmail],
+    subject,
+    text,
+    html,
+    replyTo,
+  });
+}

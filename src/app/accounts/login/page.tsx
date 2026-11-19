@@ -9,6 +9,7 @@ function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const authRequired = searchParams.get("auth_required") === "1";
+  const confirmed = searchParams.get("confirmed") === "1";
   const { startLoading, stopLoading, showToast } = useUI();
 
   const [username, setUsername] = useState("");
@@ -56,6 +57,15 @@ function LoginFormContent() {
               Acesse sua conta para gerenciar projetos e horários
             </p>
           </div>
+
+          {confirmed && (
+            <div className="alert alert-success d-flex align-items-center gap-2 small py-2 mb-3">
+              <i className="bi bi-check-circle-fill fs-5 text-success" />
+              <span>
+                Conta confirmada e ativada com sucesso! Faça login abaixo.
+              </span>
+            </div>
+          )}
 
           {authRequired && (
             <div className="alert alert-warning d-flex align-items-center gap-2 small py-2 mb-3">
@@ -118,11 +128,11 @@ function LoginFormContent() {
           </form>
 
           <div className="border-top mt-4 pt-3 text-center small">
-            <span className="text-muted">Ainda não possui conta? </span>
-            <Link href="/accounts/register" className="fw-bold text-decoration-none">
-              Cadastre-se gratuitamente
-            </Link>
-            <div className="mt-2">
+            <div className="text-muted mb-2">
+              <i className="bi bi-info-circle me-1" />
+              Novas contas são criadas mediante convite do administrador.
+            </div>
+            <div>
               <Link href="/" className="text-secondary text-decoration-none">
                 <i className="bi bi-arrow-left me-1" />
                 Voltar à consulta pública

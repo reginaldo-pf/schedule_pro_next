@@ -110,16 +110,10 @@ export function PublicHomeClient({
           <div className="d-flex gap-2">
             <Link
               href="/accounts/login"
-              className="btn btn-outline-primary btn-sm px-3 fw-semibold"
+              className="btn btn-primary btn-sm px-3 fw-semibold"
             >
               <i className="bi bi-box-arrow-in-right me-1" />
               Entrar
-            </Link>
-            <Link
-              href="/accounts/register"
-              className="btn btn-primary btn-sm px-3 fw-semibold"
-            >
-              Criar Conta
             </Link>
           </div>
         </div>

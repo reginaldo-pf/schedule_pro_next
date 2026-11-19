@@ -210,3 +210,43 @@ export async function verifyPortalToken(
   }
 }
 
+/**
+ * Generates a signed 72-hour User Account Confirmation token
+ */
+export async function generateUserConfirmationToken(
+  userId: number,
+  email: string
+): Promise<string> {
+  return await new SignJWT({
+    userId,
+    email,
+    purpose: "user_confirmation",
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("72h")
+    .sign(SECRET_KEY);
+}
+
+export async function verifyUserConfirmationToken(
+  token: string
+): Promise<{ userId: number; email: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, SECRET_KEY);
+    if (
+      payload.purpose === "user_confirmation" &&
+      typeof payload.userId === "number" &&
+      typeof payload.email === "string"
+    ) {
+      return {
+        userId: payload.userId,
+        email: payload.email,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+
