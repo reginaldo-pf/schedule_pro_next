@@ -1,6 +1,14 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
+import { usePathname } from "next/navigation";
 
 export type ToastLevel = "success" | "danger" | "warning" | "info";
 
@@ -28,7 +36,10 @@ interface UIContextType {
 const UIContext = createContext<UIContextType | null>(null);
 
 export function UIProvider({ children }: { children: React.ReactNode }) {
-  const [loadingStatus, setLoadingStatus] = useState<"idle" | "loading" | "finished">("idle");
+  const pathname = usePathname();
+  const [loadingStatus, setLoadingStatus] = useState<
+    "idle" | "loading" | "finished"
+  >("idle");
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
@@ -40,34 +51,115 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
     resolve: null,
   });
 
-  const startLoading = useCallback(() => {
-    setLoadingStatus("loading");
-  }, []);
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopLoading = useCallback(() => {
-    setLoadingStatus("finished");
+    if (safetyTimerRef.current) {
+      clearTimeout(safetyTimerRef.current);
+      safetyTimerRef.current = null;
+    }
+    setLoadingStatus((prev) => {
+      if (prev === "idle") return "idle";
+      return "finished";
+    });
     setTimeout(() => {
       setLoadingStatus((prev) => (prev === "finished" ? "idle" : prev));
-    }, 350);
+    }, 300);
   }, []);
 
-  const showToast = useCallback((message: string, level: ToastLevel = "success") => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, level }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4500);
-  }, []);
+  const startLoading = useCallback(() => {
+    if (safetyTimerRef.current) {
+      clearTimeout(safetyTimerRef.current);
+    }
+    setLoadingStatus("loading");
+    safetyTimerRef.current = setTimeout(() => {
+      stopLoading();
+    }, 12000);
+  }, [stopLoading]);
 
-  const confirmAction = useCallback((options: ConfirmOptions): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setConfirmState({
-        open: true,
-        options,
-        resolve,
+  // Stop loading whenever route pathname finishes transitioning
+  useEffect(() => {
+    stopLoading();
+  }, [pathname, stopLoading]);
+
+  // Automatically trigger loading overlay when clicking internal navigation links
+  useEffect(() => {
+    const handleDocumentClick = (e: MouseEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
+        return;
+      }
+
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest("a");
+      if (!anchor) return;
+
+      const href = anchor.getAttribute("href");
+      const targetAttr = anchor.getAttribute("target");
+      if (
+        !href ||
+        href.startsWith("#") ||
+        href.startsWith("javascript:") ||
+        href.startsWith("mailto:") ||
+        href.startsWith("tel:") ||
+        targetAttr === "_blank" ||
+        anchor.hasAttribute("download")
+      ) {
+        return;
+      }
+
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        if (url.pathname.startsWith("/api/")) return;
+
+        const currentFull =
+          window.location.pathname + window.location.search;
+        const nextFull = url.pathname + url.search;
+
+        if (nextFull !== currentFull) {
+          startLoading();
+        }
+      } catch {
+        // Ignore invalid URLs
+      }
+    };
+
+    document.addEventListener("click", handleDocumentClick, true);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick, true);
+    };
+  }, [startLoading]);
+
+  const showToast = useCallback(
+    (message: string, level: ToastLevel = "success") => {
+      const id = Date.now() + Math.random();
+      setToasts((prev) => [...prev, { id, message, level }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 4500);
+    },
+    []
+  );
+
+  const confirmAction = useCallback(
+    (options: ConfirmOptions): Promise<boolean> => {
+      return new Promise((resolve) => {
+        setConfirmState({
+          open: true,
+          options,
+          resolve,
+        });
       });
-    });
-  }, []);
+    },
+    []
+  );
 
   const handleConfirmClose = (result: boolean) => {
     if (confirmState.resolve) {
@@ -86,6 +178,7 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
         confirmAction,
       }}
     >
+      {/* Top Progress Bar */}
       <div
         id="global-progress-bar"
         className={`global-progress-bar ${
@@ -96,6 +189,46 @@ export function UIProvider({ children }: { children: React.ReactNode }) {
             : ""
         }`}
       />
+
+      {/* Full-Screen Blocking Loading Overlay to prevent repeated clicks */}
+      {loadingStatus === "loading" && (
+        <div
+          className="no-print"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 2040,
+            backgroundColor: "rgba(15, 23, 42, 0.32)",
+            backdropFilter: "blur(2px)",
+            WebkitBackdropFilter: "blur(2px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "wait",
+          }}
+        >
+          <div
+            className="bg-white rounded-4 shadow-lg px-4 py-3 d-flex align-items-center gap-3 border"
+            style={{ minWidth: 230 }}
+          >
+            <div
+              className="spinner-border text-primary flex-shrink-0"
+              role="status"
+              style={{ width: "1.75rem", height: "1.75rem", borderWidth: "0.2em" }}
+            >
+              <span className="visually-hidden">Carregando...</span>
+            </div>
+            <div>
+              <div className="fw-bold text-dark" style={{ fontSize: "0.92rem" }}>
+                Carregando...
+              </div>
+              <div className="text-muted" style={{ fontSize: "0.75rem" }}>
+                Processando solicitação, aguarde
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {children}
 

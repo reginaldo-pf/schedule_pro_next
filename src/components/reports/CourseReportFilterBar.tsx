@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUI } from "@/components/ui/UIProvider";
 
 export function CourseReportFilterBar({
   groups,
@@ -15,16 +16,23 @@ export function CourseReportFilterBar({
   selectedClass: number | null;
 }) {
   const router = useRouter();
+  const { startLoading, stopLoading } = useUI();
+
+  useEffect(() => {
+    stopLoading();
+  }, [selectedGroup, selectedClass, stopLoading]);
 
   const filteredClasses = classes.filter(
     (c) => !selectedGroup || c.group_id === selectedGroup
   );
 
   const updateFilter = (nextGroup: string, nextClass: string) => {
+    startLoading();
     const params = new URLSearchParams();
     if (nextGroup) params.set("group", nextGroup);
     if (nextClass) params.set("class", nextClass);
-    router.push(`/reports/course?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `/reports/course?${qs}` : "/reports/course");
   };
 
   return (
@@ -74,7 +82,7 @@ export function CourseReportFilterBar({
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm w-100"
-              onClick={() => router.push("/reports/course")}
+              onClick={() => updateFilter("", "")}
             >
               <i className="bi bi-x-circle me-1" />
               Limpar

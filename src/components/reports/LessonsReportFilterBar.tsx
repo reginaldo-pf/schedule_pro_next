@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUI } from "@/components/ui/UIProvider";
 
 export function LessonsReportFilterBar({
   groups,
@@ -23,6 +24,11 @@ export function LessonsReportFilterBar({
   selectedRoom: number | null;
 }) {
   const router = useRouter();
+  const { startLoading, stopLoading } = useUI();
+
+  useEffect(() => {
+    stopLoading();
+  }, [selectedGroup, selectedClass, selectedTeacher, selectedRoom, stopLoading]);
 
   const filteredClasses = classes.filter(
     (c) => !selectedGroup || c.group_id === selectedGroup
@@ -34,6 +40,7 @@ export function LessonsReportFilterBar({
     teacher?: string;
     room?: string;
   }) => {
+    startLoading();
     const params = new URLSearchParams();
     const g =
       next.group !== undefined
@@ -148,7 +155,9 @@ export function LessonsReportFilterBar({
               type="button"
               className="btn btn-outline-secondary btn-sm w-100"
               title="Limpar Filtros"
-              onClick={() => router.push("/lessons/report")}
+              onClick={() =>
+                updateFilter({ group: "", classId: "", teacher: "", room: "" })
+              }
             >
               <i className="bi bi-x-circle" />
             </button>
