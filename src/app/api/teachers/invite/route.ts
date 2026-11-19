@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     provider: emailResult.provider,
     error: emailResult.error,
     message: emailResult.sent
-      ? `Convite enviado com sucesso via Resend para ${teacher.name} (${teacher.email})!`
+      ? `Convite enviado com sucesso para ${teacher.name} (${teacher.email})!`
       : `Link do Portal gerado para ${teacher.name}! (${
           emailResult.error || "Copie o link diretamente"
         })`,

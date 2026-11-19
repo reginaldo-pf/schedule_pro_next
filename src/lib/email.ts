@@ -3,10 +3,13 @@ import nodemailer from "nodemailer";
 
 export interface SendEmailResult {
   sent: boolean;
-  provider: "resend" | "smtp" | "console";
+  provider: "postmark" | "resend" | "smtp" | "console";
   id?: string;
   error?: string;
 }
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const PUBLIC_UNVERIFIABLE_DOMAINS = [
   "gmail.com",
@@ -23,6 +26,41 @@ const PUBLIC_UNVERIFIABLE_DOMAINS = [
   "terra.com.br",
 ];
 
+function resolvePostmarkToken(): string {
+  const candidates = [
+    process.env.POSTMARK_API_KEY,
+    process.env.POSTMARK_SERVER_TOKEN,
+    process.env.EMAIL_HOST_PASSWORD,
+    process.env.RESEND_API_KEY,
+  ];
+  for (const c of candidates) {
+    const trimmed = (c || "").trim();
+    if (UUID_REGEX.test(trimmed)) {
+      return trimmed;
+    }
+  }
+  return "";
+}
+
+function resolvePostmarkFromAddress(): string {
+  const raw = (
+    process.env.POSTMARK_FROM_EMAIL ||
+    process.env.DEFAULT_FROM_EMAIL ||
+    process.env.RESEND_FROM_EMAIL ||
+    ""
+  ).trim();
+
+  // Ignore onboarding@resend.dev for Postmark if DEFAULT_FROM_EMAIL has a real address
+  if (!raw || raw.includes("onboarding@resend.dev")) {
+    const def = (process.env.DEFAULT_FROM_EMAIL || "").trim();
+    if (def && !def.includes("onboarding@resend.dev")) {
+      return def;
+    }
+  }
+
+  return raw || "noreply@schedulepro.com";
+}
+
 function resolveResendFromAddress(): string {
   const DEFAULT_RESEND_SENDER = "Schedule Pro <onboarding@resend.dev>";
   const rawFrom = (
@@ -35,7 +73,6 @@ function resolveResendFromAddress(): string {
     return DEFAULT_RESEND_SENDER;
   }
 
-  // Extract email part if formatted as "Name <email@domain.com>"
   const match = rawFrom.match(/<([^>]+)>/);
   const emailPart = (match ? match[1] : rawFrom).trim().toLowerCase();
   const domain = emailPart.split("@")[1] || "";
@@ -64,15 +101,71 @@ export async function sendEmail({
   html?: string;
   replyTo?: string;
 }): Promise<SendEmailResult> {
+  // 1. Primary Provider: Postmark HTTP API (X-Postmark-Server-Token)
+  const postmarkToken = resolvePostmarkToken();
+  if (postmarkToken) {
+    const fromEmail = resolvePostmarkFromAddress();
+    try {
+      const response = await fetch("https://api.postmarkapp.com/email", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "X-Postmark-Server-Token": postmarkToken,
+        },
+        body: JSON.stringify({
+          From: fromEmail,
+          To: to.join(", "),
+          Subject: subject,
+          HtmlBody:
+            html ||
+            (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
+          TextBody: text || undefined,
+          ...(replyTo ? { ReplyTo: replyTo } : {}),
+          MessageStream: "outbound",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.ErrorCode === 0) {
+        return {
+          sent: true,
+          provider: "postmark",
+          id: data.MessageID,
+        };
+      }
+
+      console.warn(
+        `[POSTMARK WARNING] ErrorCode ${data.ErrorCode}: ${data.Message}`
+      );
+      return {
+        sent: false,
+        provider: "postmark",
+        error: `Postmark (${data.ErrorCode}): ${data.Message}`,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.warn(`[POSTMARK EXCEPTION] ${msg}`);
+      return {
+        sent: false,
+        provider: "postmark",
+        error: msg,
+      };
+    }
+  }
+
+  // 2. Secondary Provider: Official Resend SDK (re_*)
   const resendKey = (
-    process.env.RESEND_API_KEY ||
+    (process.env.RESEND_API_KEY?.startsWith("re_")
+      ? process.env.RESEND_API_KEY
+      : "") ||
     (process.env.EMAIL_HOST_PASSWORD?.startsWith("re_")
       ? process.env.EMAIL_HOST_PASSWORD
       : "") ||
     ""
   ).trim();
 
-  // 1. Primary Provider: Official Resend SDK
   if (resendKey) {
     const resend = new Resend(resendKey);
     const primaryFrom = resolveResendFromAddress();
@@ -83,7 +176,9 @@ export async function sendEmail({
         from: primaryFrom,
         to,
         subject,
-        html: html || (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
+        html:
+          html ||
+          (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
         text: text || undefined,
         ...(replyTo ? { replyTo } : {}),
       });
@@ -96,16 +191,14 @@ export async function sendEmail({
         };
       }
 
-      // If custom domain isn't verified yet in Resend, retry with onboarding@resend.dev
       if (error && primaryFrom !== fallbackFrom) {
-        console.warn(
-          `[RESEND] Remetente '${primaryFrom}' falhou (${error.message}). Tentando com '${fallbackFrom}'...`
-        );
         const retry = await resend.emails.send({
           from: fallbackFrom,
           to,
           subject,
-          html: html || (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
+          html:
+            html ||
+            (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
           text: text || undefined,
           ...(replyTo ? { replyTo } : {}),
         });
@@ -126,7 +219,6 @@ export async function sendEmail({
       }
 
       if (error) {
-        console.warn(`[RESEND ERROR] ${error.name}: ${error.message}`);
         return {
           sent: false,
           provider: "resend",
@@ -135,7 +227,6 @@ export async function sendEmail({
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[RESEND EXCEPTION] ${msg}`);
       return {
         sent: false,
         provider: "resend",
@@ -144,7 +235,7 @@ export async function sendEmail({
     }
   }
 
-  // 2. Secondary Provider: SMTP (Nodemailer) if configured
+  // 3. Tertiary Provider: SMTP (Nodemailer)
   const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || "";
   const smtpPort = Number(
     process.env.EMAIL_PORT || process.env.SMTP_PORT || 587
@@ -156,7 +247,8 @@ export async function sendEmail({
     "";
   const smtpPass =
     process.env.SMTP_PASSWORD ||
-    (!process.env.EMAIL_HOST_PASSWORD?.startsWith("re_")
+    (!process.env.EMAIL_HOST_PASSWORD?.startsWith("re_") &&
+    !UUID_REGEX.test(process.env.EMAIL_HOST_PASSWORD || "")
       ? process.env.EMAIL_HOST_PASSWORD
       : "") ||
     process.env.EMAIL_PASS ||
@@ -192,7 +284,7 @@ export async function sendEmail({
     }
   }
 
-  // 3. Console fallback
+  // 4. Console fallback
   console.info(
     `\n==================== [EMAIL CONSOLE FALLBACK] ====================\n` +
       `Para: ${to.join(", ")}\n` +
@@ -205,9 +297,8 @@ export async function sendEmail({
   return {
     sent: false,
     provider: "console",
-    error: "RESEND_API_KEY não configurada.",
+    error: "Nenhum provedor de e-mail ativo configurado.",
   };
 }
 
-// Alias for backwards compatibility
 export const sendEmailViaBrevo = sendEmail;
