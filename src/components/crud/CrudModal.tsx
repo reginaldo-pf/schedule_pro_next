@@ -2,7 +2,10 @@
 
 import React, { useState } from "react";
 
-export type SaveActionType = "save" | "save_and_continue" | "save_and_add_another";
+export type SaveActionType =
+  | "save"
+  | "save_and_continue"
+  | "save_and_add_another";
 
 export function CrudModal({
   open,
@@ -33,7 +36,9 @@ export function CrudModal({
   onDelete?: () => Promise<void>;
   children: React.ReactNode;
 }) {
-  const [submittingAction, setSubmittingAction] = useState<SaveActionType | "delete" | null>(null);
+  const [submittingAction, setSubmittingAction] = useState<
+    SaveActionType | "delete" | null
+  >(null);
 
   if (!open) return null;
 
@@ -72,43 +77,51 @@ export function CrudModal({
           className={`modal-dialog modal-dialog-centered modal-dialog-scrollable modal-${size}`}
         >
           <div className="modal-content border-0 shadow-lg">
-            {/* Header with Prev/Next navigation */}
-            <div className="modal-header bg-light border-bottom py-3 px-4">
-              <div className="d-flex align-items-center gap-2">
-                <div className="bg-primary-subtle text-primary rounded-2 p-1 px-2">
+            {/* Fixed-height Header with Truncated Title & Non-deforming Prev/Next navigation */}
+            <div className="modal-header bg-light border-bottom py-3 px-4 d-flex align-items-center justify-content-between flex-nowrap">
+              <div
+                className="d-flex align-items-center gap-2 flex-grow-1 me-3"
+                style={{ minWidth: 0 }}
+              >
+                <div className="bg-primary-subtle text-primary rounded-2 p-1 px-2 flex-shrink-0">
                   <i className={`bi ${icon}`} />
                 </div>
-                <h5 className="modal-title fw-bold mb-0">{title}</h5>
+                <h5
+                  className="modal-title fw-bold mb-0 text-truncate"
+                  title={title}
+                >
+                  {title}
+                </h5>
               </div>
 
-              <div className="d-flex align-items-center gap-2 ms-auto">
+              <div className="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
                 {isEditing && (onPrev || onNext) && (
-                  <div className="btn-group btn-group-sm me-2">
+                  <div className="btn-group btn-group-sm me-1 flex-shrink-0">
                     <button
                       type="button"
-                      className="btn btn-outline-secondary"
+                      className="btn btn-outline-secondary text-nowrap d-inline-flex align-items-center gap-1 px-2"
                       disabled={!hasPrev || submittingAction !== null}
                       onClick={onPrev}
                       title="Registro Anterior"
                     >
-                      <i className="bi bi-chevron-left me-1" />
-                      Anterior
+                      <i className="bi bi-chevron-left" />
+                      <span>Anterior</span>
                     </button>
                     <button
                       type="button"
-                      className="btn btn-outline-secondary"
+                      className="btn btn-outline-secondary text-nowrap d-inline-flex align-items-center gap-1 px-2"
                       disabled={!hasNext || submittingAction !== null}
                       onClick={onNext}
                       title="Próximo Registro"
                     >
-                      Próximo
-                      <i className="bi bi-chevron-right ms-1" />
+                      <span>Próximo</span>
+                      <i className="bi bi-chevron-right" />
                     </button>
                   </div>
                 )}
                 <button
                   type="button"
-                  className="btn-close"
+                  className="btn-close flex-shrink-0"
                   onClick={onClose}
                   disabled={submittingAction !== null}
                 />
@@ -125,12 +138,12 @@ export function CrudModal({
               <div className="modal-body p-4">{children}</div>
 
               {/* Standardized Multi-Action Footer */}
-              <div className="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between flex-wrap gap-2">
+              <div className="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>
                   {isEditing && onDelete && (
                     <button
                       type="button"
-                      className="btn btn-outline-danger btn-sm px-3 py-2 d-flex align-items-center gap-2"
+                      className="btn btn-outline-danger btn-sm px-3 py-2 d-inline-flex align-items-center gap-2 text-nowrap"
                       disabled={submittingAction !== null}
                       onClick={handleDelete}
                     >
@@ -147,7 +160,7 @@ export function CrudModal({
                 <div className="d-flex flex-wrap align-items-center gap-2 ms-auto">
                   <button
                     type="button"
-                    className="btn btn-light btn-sm px-3 py-2"
+                    className="btn btn-light btn-sm px-3 py-2 text-nowrap"
                     disabled={submittingAction !== null}
                     onClick={onClose}
                   >
@@ -156,7 +169,7 @@ export function CrudModal({
 
                   <button
                     type="button"
-                    className="btn btn-outline-primary btn-sm px-3 py-2 d-flex align-items-center gap-1"
+                    className="btn btn-outline-primary btn-sm px-3 py-2 d-inline-flex align-items-center gap-1 text-nowrap"
                     disabled={submittingAction !== null}
                     onClick={() => handleAction("save_and_add_another")}
                   >
@@ -169,7 +182,7 @@ export function CrudModal({
 
                   <button
                     type="button"
-                    className="btn btn-outline-secondary btn-sm px-3 py-2 d-flex align-items-center gap-1"
+                    className="btn btn-outline-secondary btn-sm px-3 py-2 d-inline-flex align-items-center gap-1 text-nowrap"
                     disabled={submittingAction !== null}
                     onClick={() => handleAction("save_and_continue")}
                   >
@@ -182,7 +195,7 @@ export function CrudModal({
 
                   <button
                     type="submit"
-                    className="btn btn-primary btn-sm px-4 py-2 fw-bold d-flex align-items-center gap-1 shadow-sm"
+                    className="btn btn-primary btn-sm px-4 py-2 fw-bold d-inline-flex align-items-center gap-1 shadow-sm text-nowrap"
                     disabled={submittingAction !== null}
                   >
                     {submittingAction === "save" ? (
