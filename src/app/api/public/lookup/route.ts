@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import {
-  generatePortalToken,
-  PUBLIC_PORTAL_TOKEN_TTL_SECONDS,
-} from "@/lib/auth";
+import { createPublicAvailabilityRequestToken } from "@/lib/auth";
+import { verifyAltchaPayload } from "@/lib/altcha";
 import { ACTIVE_RUN_STATUSES } from "@/lib/schedule/collision-engine";
 
 export async function GET(request: Request) {
@@ -38,6 +36,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const body = await request.json();
+  const isCaptchaValid = await verifyAltchaPayload(body?.altcha);
+  if (!isCaptchaValid) {
+    return NextResponse.json(
+      {
+        ok: false,
+        message: "Complete a verificação de segurança (Não sou um robô) antes de buscar.",
+      },
+      { status: 400 }
+    );
+  }
+
   const email = (body.email || "").trim();
   if (!email) {
     return NextResponse.json({ ok: true, results: [] });
@@ -85,11 +94,9 @@ export async function POST(request: Request) {
       hasSchedule = count > 0;
     }
 
-    const portalToken = await generatePortalToken(
+    const availabilityRequestToken = await createPublicAvailabilityRequestToken(
       Number(t.id),
-      Number(t.schedules_project.id),
-      undefined,
-      PUBLIC_PORTAL_TOKEN_TTL_SECONDS
+      Number(t.schedules_project.id)
     );
 
     results.push({
@@ -105,7 +112,7 @@ export async function POST(request: Request) {
         academic_period: t.schedules_project.academic_period,
       },
       hasSchedule,
-      portalToken,
+      availabilityRequestToken,
     });
   }
 

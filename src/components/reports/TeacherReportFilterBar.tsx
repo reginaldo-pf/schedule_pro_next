@@ -49,7 +49,7 @@ export function TeacherReportFilterBar({
                 )
               }
             >
-              <option value="">Todos os Cursos</option>
+              <option value="">Selecione o Curso / Grupo...</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -71,7 +71,7 @@ export function TeacherReportFilterBar({
                 )
               }
             >
-              <option value="">Todos os professores com aula</option>
+              <option value="">Selecione o Professor...</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}

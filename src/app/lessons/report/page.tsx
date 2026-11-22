@@ -25,6 +25,7 @@ export default async function LessonsMatrixReportPage({
   const classId = sp.class ? Number(sp.class) : null;
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
   const roomId = sp.room ? Number(sp.room) : null;
+  const hasFilterApplied = Boolean(groupId || classId || teacherId || roomId);
 
   const [groups, classes, teachersList, rooms, lessons] = await Promise.all([
     prisma.groups_group.findMany({
@@ -43,37 +44,39 @@ export default async function LessonsMatrixReportPage({
       where: { project_id: project.id, active: true },
       orderBy: { name: "asc" },
     }),
-    prisma.lessons_lesson.findMany({
-      where: {
-        project_id: project.id,
-        active: true,
-        ...(groupId
-          ? { subjects_subject: { group_id: BigInt(groupId) } }
-          : {}),
-        ...(classId
-          ? {
-              lessons_lesson_classes: {
-                some: { schoolclass_id: BigInt(classId) },
-              },
-            }
-          : {}),
-        ...(teacherId
-          ? {
-              lessons_lesson_teachers: {
-                some: { teacher_id: BigInt(teacherId) },
-              },
-            }
-          : {}),
-        ...(roomId ? { room_id: BigInt(roomId) } : {}),
-      },
-      include: {
-        subjects_subject: { include: { rooms_room: true } },
-        rooms_room: true,
-        lessons_lesson_classes: { include: { classes_schoolclass: true } },
-        lessons_lesson_teachers: { include: { teachers_teacher: true } },
-      },
-      orderBy: { subjects_subject: { name: "asc" } },
-    }),
+    hasFilterApplied
+      ? prisma.lessons_lesson.findMany({
+          where: {
+            project_id: project.id,
+            active: true,
+            ...(groupId
+              ? { subjects_subject: { group_id: BigInt(groupId) } }
+              : {}),
+            ...(classId
+              ? {
+                  lessons_lesson_classes: {
+                    some: { schoolclass_id: BigInt(classId) },
+                  },
+                }
+              : {}),
+            ...(teacherId
+              ? {
+                  lessons_lesson_teachers: {
+                    some: { teacher_id: BigInt(teacherId) },
+                  },
+                }
+              : {}),
+            ...(roomId ? { room_id: BigInt(roomId) } : {}),
+          },
+          include: {
+            subjects_subject: { include: { rooms_room: true } },
+            rooms_room: true,
+            lessons_lesson_classes: { include: { classes_schoolclass: true } },
+            lessons_lesson_teachers: { include: { teachers_teacher: true } },
+          },
+          orderBy: { subjects_subject: { name: "asc" } },
+        })
+      : Promise.resolve([]),
   ]);
 
   const reportGroups = new Map<
@@ -232,7 +235,9 @@ export default async function LessonsMatrixReportPage({
 
         {sortedTeachers.length === 0 ? (
           <div className="text-center py-5 text-muted">
-            Nenhuma aula encontrada para os filtros selecionados.
+            {hasFilterApplied
+              ? "Nenhuma aula encontrada para os filtros selecionados."
+              : "Selecione um filtro acima para carregar o relatório de carga horária."}
           </div>
         ) : (
           sortedTeachers.map((tGroup) => {

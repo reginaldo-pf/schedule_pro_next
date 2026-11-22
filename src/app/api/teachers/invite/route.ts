@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     `Acesse o seu portal exclusivo utilizando o link abaixo (não é necessário login ou senha):\n\n` +
     `${portalUrl}\n\n` +
     `Este link é de uso exclusivo e expira em 48 horas.\n\n` +
+    `AVISO: Este é um e-mail automático enviado pelo sistema. Por favor, não responda a esta mensagem.\n\n` +
     `Atenciosamente,\nEquipe Schedule Pro`;
 
   const html = `
@@ -125,6 +126,9 @@ export async function POST(request: Request) {
               <p style="margin:20px 0 0;font-size:12.5px;color:#64748b;">
                 * Este link é individual e válido por 48 horas.
               </p>
+              <div style="background-color:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 14px;margin-top:16px;font-size:12.5px;color:#92400e;">
+                <strong>Aviso:</strong> Este é um e-mail automático enviado pelo sistema. Por favor, <strong>não responda</strong> a esta mensagem.
+              </div>
             </td>
           </tr>
           <tr>

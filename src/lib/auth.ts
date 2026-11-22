@@ -269,4 +269,40 @@ export async function verifyUserConfirmationToken(
   }
 }
 
+export async function createPublicAvailabilityRequestToken(
+  teacherId: number,
+  projectId: number
+): Promise<string> {
+  return await new SignJWT({
+    teacherId,
+    projectId,
+    purpose: "public_availability_email",
+  })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime("10m")
+    .sign(SECRET_KEY);
+}
+
+export async function verifyPublicAvailabilityRequestToken(
+  token: string
+): Promise<{ teacherId: number; projectId: number } | null> {
+  try {
+    const { payload } = await jwtVerify(token, SECRET_KEY);
+    if (
+      payload.purpose === "public_availability_email" &&
+      typeof payload.teacherId === "number" &&
+      typeof payload.projectId === "number"
+    ) {
+      return {
+        teacherId: payload.teacherId,
+        projectId: payload.projectId,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 

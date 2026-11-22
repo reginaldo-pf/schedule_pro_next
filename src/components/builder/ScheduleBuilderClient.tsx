@@ -87,13 +87,8 @@ export function ScheduleBuilderClient({
   const router = useRouter();
   const { startLoading, stopLoading, showToast, confirmAction } = useUI();
 
-  // Select default group and class if not passed via URL
-  const defaultGroup =
-    initialGroupId || (groups[0] ? groups[0].id : 0);
-  const defaultClass =
-    initialClassId ||
-    classes.find((c) => c.group_id === defaultGroup)?.id ||
-    0;
+  const defaultGroup = initialGroupId || 0;
+  const defaultClass = initialClassId || 0;
 
   const [selectedGroupId, setSelectedGroupId] = useState<number>(defaultGroup);
   const [selectedClassId, setSelectedClassId] = useState<number>(defaultClass);
@@ -871,9 +866,14 @@ export function ScheduleBuilderClient({
                     className="form-select form-select-sm"
                     style={{ minWidth: 210 }}
                     value={selectedClassId || ""}
+                    disabled={!selectedGroupId}
                     onChange={(e) => handleSelectClass(Number(e.target.value))}
                   >
-                    <option value="">Selecione a Turma...</option>
+                    <option value="">
+                      {selectedGroupId
+                        ? "Selecione a Turma..."
+                        : "Selecione um curso primeiro..."}
+                    </option>
                     {filteredClassesForDropdown.map((c) => (
                       <option key={c.id} value={c.id}>
                         {c.name}

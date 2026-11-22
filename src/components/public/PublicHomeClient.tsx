@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUI } from "../ui/UIProvider";
+import { AltchaWidget } from "../ui/AltchaWidget";
 
 interface PublicProject {
   id: number;
@@ -25,15 +26,19 @@ export function PublicHomeClient({
   const [selectedGroup, setSelectedGroup] = useState("");
   const [classes, setClasses] = useState<{ id: number; name: string }[]>([]);
   const [selectedClass, setSelectedClass] = useState("");
+  const [studentAltchaPayload, setStudentAltchaPayload] = useState("");
+  const [studentAltchaResetKey, setStudentAltchaResetKey] = useState(0);
 
   const [teacherEmail, setTeacherEmail] = useState("");
+  const [teacherAltchaPayload, setTeacherAltchaPayload] = useState("");
+  const [teacherAltchaResetKey, setTeacherAltchaResetKey] = useState(0);
   const [searchedTeacher, setSearchedTeacher] = useState(false);
   const [teacherResults, setTeacherResults] = useState<
     {
       teacher: { id: number; name: string; email: string };
       project: PublicProject;
       hasSchedule: boolean;
-      portalToken?: string;
+      availabilityRequestToken?: string;
     }[]
   >([]);
 
@@ -75,10 +80,65 @@ export function PublicHomeClient({
     }
   };
 
+  const handleViewClassSchedule = async () => {
+    if (!selectedClass) return;
+    if (!studentAltchaPayload) {
+      showToast("Complete a verificação de segurança (Não sou um robô).", "warning");
+      return;
+    }
+
+    startLoading();
+    try {
+      const res = await fetch("/api/public/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ altcha: studentAltchaPayload }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        router.push(`/schedule/class/${selectedClass}`);
+      } else {
+        showToast(
+          data.message || "Falha na verificação de segurança. Tente novamente.",
+          "danger"
+        );
+        setStudentAltchaResetKey((k) => k + 1);
+      }
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleSendAvailabilityEmail = async (requestToken: string) => {
+    startLoading();
+    try {
+      const res = await fetch("/api/public/send-availability-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestToken }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast(data.message, "success");
+      } else {
+        showToast(
+          data.message || "Não foi possível enviar o link por e-mail.",
+          "danger"
+        );
+      }
+    } finally {
+      stopLoading();
+    }
+  };
+
   const handleSearchTeacher = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!teacherEmail.trim()) {
       showToast("Informe o seu e-mail institucional.", "warning");
+      return;
+    }
+    if (!teacherAltchaPayload) {
+      showToast("Complete a verificação de segurança (Não sou um robô).", "warning");
       return;
     }
 
@@ -87,12 +147,23 @@ export function PublicHomeClient({
       const res = await fetch("/api/public/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: teacherEmail }),
+        body: JSON.stringify({
+          email: teacherEmail,
+          altcha: teacherAltchaPayload,
+        }),
       });
       const data = await res.json();
+      if (!res.ok || !data.ok) {
+        showToast(
+          data.message || "Falha na verificação de segurança. Tente novamente.",
+          "danger"
+        );
+        return;
+      }
       setSearchedTeacher(true);
       setTeacherResults(data.results || []);
     } finally {
+      setTeacherAltchaResetKey((k) => k + 1);
       stopLoading();
     }
   };
@@ -217,11 +288,18 @@ export function PublicHomeClient({
                   </select>
                 </div>
 
+                <div className="mb-3">
+                  <AltchaWidget
+                    onVerify={setStudentAltchaPayload}
+                    resetKey={studentAltchaResetKey}
+                  />
+                </div>
+
                 <button
                   type="button"
                   className="btn btn-primary w-100 py-2 fw-bold"
-                  disabled={!selectedClass}
-                  onClick={() => router.push(`/schedule/class/${selectedClass}`)}
+                  disabled={!selectedClass || !studentAltchaPayload}
+                  onClick={handleViewClassSchedule}
                 >
                   <i className="bi bi-calendar-week me-2" />
                   Visualizar Horário da Turma
@@ -250,7 +328,7 @@ export function PublicHomeClient({
                   <label className="form-label fw-semibold small">
                     E-mail do Professor
                   </label>
-                  <div className="input-group">
+                  <div className="input-group mb-2">
                     <span className="input-group-text bg-light">
                       <i className="bi bi-envelope" />
                     </span>
@@ -264,10 +342,15 @@ export function PublicHomeClient({
                     <button
                       type="submit"
                       className="btn btn-success px-4 fw-bold"
+                      disabled={!teacherAltchaPayload}
                     >
                       Buscar
                     </button>
                   </div>
+                  <AltchaWidget
+                    onVerify={setTeacherAltchaPayload}
+                    resetKey={teacherAltchaResetKey}
+                  />
                 </form>
 
                 {searchedTeacher && (
@@ -309,15 +392,20 @@ export function PublicHomeClient({
                                   Sem horário publicado
                                 </span>
                               )}
-                              {item.portalToken && (
-                                <Link
-                                  href={`/teachers/portal/${item.portalToken}`}
+                              {item.availabilityRequestToken && (
+                                <button
+                                  type="button"
                                   className="btn btn-sm btn-outline-primary fw-semibold px-3"
-                                  title="Link válido por 10 minutos"
+                                  title="Enviar link de alteração de disponibilidade para o seu e-mail (válido por 10 minutos)"
+                                  onClick={() =>
+                                    handleSendAvailabilityEmail(
+                                      item.availabilityRequestToken!
+                                    )
+                                  }
                                 >
-                                  <i className="bi bi-calendar-check me-1" />
+                                  <i className="bi bi-envelope-arrow-up me-1" />
                                   Alterar Disponibilidade
-                                </Link>
+                                </button>
                               )}
                             </div>
                           </div>

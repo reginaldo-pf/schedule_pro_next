@@ -37,7 +37,7 @@ export default async function PublicSchedulePage({
     return (
       <div className="min-vh-100 bg-body-tertiary py-4">
         <div className="container">
-          <div className="d-flex justify-content-between align-items-center mb-4 no-print">
+          <div className="d-flex justify-content-between align-items-center mb-4 no-print d-print-none">
             <Link href="/" className="btn btn-outline-secondary btn-sm">
               <i className="bi bi-arrow-left me-1" />
               Voltar para Consulta Pública
@@ -83,7 +83,7 @@ export default async function PublicSchedulePage({
     return (
       <div className="min-vh-100 bg-body-tertiary py-4">
         <div className="container">
-          <div className="d-flex justify-content-between align-items-center mb-4 no-print">
+          <div className="d-flex justify-content-between align-items-center mb-4 no-print d-print-none">
             <Link href="/" className="btn btn-outline-secondary btn-sm">
               <i className="bi bi-arrow-left me-1" />
               Voltar para Consulta Pública

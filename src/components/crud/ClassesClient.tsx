@@ -201,7 +201,7 @@ export function ClassesClient({
             value={filterGroup}
             onChange={(e) => setFilterGroup(e.target.value)}
           >
-            <option value="">Todos os Cursos / Grupos</option>
+            <option value="">Selecione o Curso / Grupo...</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}

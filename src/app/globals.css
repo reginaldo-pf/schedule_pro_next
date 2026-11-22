@@ -1058,8 +1058,18 @@ nav.app-header.navbar {
     padding: 0 !important;
     width: 100% !important;
   }
-  .no-print, .app-sidebar, .app-header, .global-progress-bar, .toast-container {
+  .no-print,
+  html body .no-print,
+  .app-sidebar,
+  .app-header,
+  .global-progress-bar,
+  .toast-container {
     display: none !important;
+  }
+  .min-vh-100 {
+    min-height: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
   }
   .app-wrapper, .app-main, .app-content, .app-content > .container-fluid {
     margin: 0 !important;

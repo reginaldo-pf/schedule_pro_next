@@ -38,13 +38,16 @@ export default async function TeacherReportPage({
 
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
   const groupId = sp.group ? Number(sp.group) : null;
+  const hasFilterApplied = Boolean(groupId || teacherId);
 
   const days = getActiveProjectDaysList(project);
-  const { pages, generatedAt } = await buildTeacherReportPages({
-    projectId: project.id,
-    teacherId,
-    groupId,
-  });
+  const { pages, generatedAt } = hasFilterApplied
+    ? await buildTeacherReportPages({
+        projectId: project.id,
+        teacherId,
+        groupId,
+      })
+    : { pages: [], generatedAt: "" };
 
   return (
     <AppShell
@@ -89,6 +92,7 @@ export default async function TeacherReportPage({
         projectId={Number(project.id)}
         selectedGroup={groupId}
         selectedTeacher={teacherId}
+        hasFilterApplied={hasFilterApplied}
       />
     </AppShell>
   );

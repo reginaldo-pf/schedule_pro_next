@@ -43,6 +43,7 @@ export function ScheduleMatrixView({
   selectedGroup,
   selectedClass,
   selectedTeacher,
+  hasFilterApplied = true,
 }: {
   mode: "course" | "teacher";
   projectHeader: {
@@ -61,6 +62,7 @@ export function ScheduleMatrixView({
   selectedGroup?: number | null;
   selectedClass?: number | null;
   selectedTeacher?: number | null;
+  hasFilterApplied?: boolean;
 }) {
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     defaultOrientation
@@ -98,7 +100,7 @@ export function ScheduleMatrixView({
       `}</style>
 
       {showPrintButton && pagesCount > 0 && (
-        <div className="card border-0 shadow-sm mb-3 no-print">
+        <div className="card border-0 shadow-sm mb-3 no-print d-print-none">
           <div className="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-3">
             <div className="d-flex align-items-center gap-2">
               <span className="small fw-bold text-secondary text-uppercase">
@@ -138,20 +140,11 @@ export function ScheduleMatrixView({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 shadow-sm fw-bold"
+                title="Imprimir ou gerar PDF oficial (A4)"
               >
                 <i className="bi bi-file-earmark-pdf-fill" />
-                <span>Gerar PDF Oficial (A4)</span>
+                <span>Imprimir / Gerar PDF (A4)</span>
               </a>
-
-              <button
-                type="button"
-                className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 px-3 py-2"
-                onClick={() => window.print()}
-                title="Imprimir visualização da tela"
-              >
-                <i className="bi bi-printer" />
-                <span className="d-none d-sm-inline">Imprimir</span>
-              </button>
             </div>
           </div>
         </div>
@@ -159,12 +152,20 @@ export function ScheduleMatrixView({
 
       {pagesCount === 0 ? (
         <div className="card border-0 shadow-sm p-5 text-center">
-          <i className="bi bi-calendar-x display-3 text-muted mb-3" />
+          <i
+            className={`bi ${
+              hasFilterApplied ? "bi-calendar-x" : "bi-funnel"
+            } display-3 text-muted mb-3`}
+          />
           <h5 className="fw-bold text-secondary">
-            Nenhum horário encontrado para os filtros selecionados
+            {hasFilterApplied
+              ? "Nenhum horário encontrado para os filtros selecionados"
+              : "Selecione um filtro acima para carregar o relatório"}
           </h5>
           <p className="text-muted small mb-0">
-            Selecione um filtro acima ou gere os horários no Construtor de Grade.
+            {hasFilterApplied
+              ? "Tente outro filtro ou gere os horários no Construtor de Grade."
+              : "Para evitar carregamentos desnecessários, escolha uma opção nos filtros acima."}
           </p>
         </div>
       ) : (
@@ -175,12 +176,6 @@ export function ScheduleMatrixView({
                   page.timeline_rows.length,
                   orientation
                 );
-                const serial = `SP-TURMA-${year}-${String(
-                  projectId || 1
-                ).padStart(2, "0")}${String(page.school_class.id).padStart(
-                  4,
-                  "0"
-                )}`;
 
                 return (
                   <div
@@ -189,15 +184,12 @@ export function ScheduleMatrixView({
                       idx < coursePages.length - 1 ? "print-page-break" : ""
                     }`}
                   >
-                    {/* Corporate Header with QR Code */}
+                    {/* Header */}
                     <div className="report-header-corp">
                       <div className="report-header-left">
                         <div className="d-flex align-items-center gap-2 mb-1">
                           <span className="report-corp-badge">
-                            GRADE HORÁRIA OFICIAL • TURMA
-                          </span>
-                          <span className="report-serial-tag">
-                            Nº Série: {serial}
+                            GRADE HORÁRIA • TURMA
                           </span>
                         </div>
                         <h1 className="report-institution">
@@ -225,26 +217,6 @@ export function ScheduleMatrixView({
                             <strong>Carga Alocada:</strong> {page.lesson_count}{" "}
                             tempos/semana
                           </span>
-                        </div>
-                      </div>
-
-                      <div className="report-qr-box">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/reports/qr?type=class&projectId=${
-                            projectId || 1
-                          }&targetId=${page.school_class.id}`}
-                          alt="QR Code de Verificação"
-                          className="report-qr-img"
-                        />
-                        <div className="report-qr-text">
-                          <div className="report-qr-title">
-                            Grade em Tempo Real
-                          </div>
-                          <div className="report-qr-desc">
-                            Aponte a câmera para consultar esta grade sempre
-                            atualizada.
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -371,8 +343,7 @@ export function ScheduleMatrixView({
                     <div className="report-footer-corp">
                       <span>
                         <strong>{projectHeader.institution_name}</strong> •
-                        Sistema Corporativo Schedule Pro • Autenticação:{" "}
-                        {serial}
+                        Sistema Schedule Pro
                       </span>
                       <span>
                         Emitido em: {generatedAt || "Tempo Real"} • Página{" "}
@@ -387,9 +358,6 @@ export function ScheduleMatrixView({
                   page.timeline_rows.length,
                   orientation
                 );
-                const serial = `SP-DOC-${year}-${String(
-                  projectId || 1
-                ).padStart(2, "0")}${String(page.teacher.id).padStart(4, "0")}`;
 
                 return (
                   <div
@@ -398,15 +366,12 @@ export function ScheduleMatrixView({
                       idx < teacherPages.length - 1 ? "print-page-break" : ""
                     }`}
                   >
-                    {/* Corporate Header with QR Code */}
+                    {/* Header */}
                     <div className="report-header-corp theme-teacher">
                       <div className="report-header-left">
                         <div className="d-flex align-items-center gap-2 mb-1">
                           <span className="report-corp-badge badge-teacher">
-                            GRADE HORÁRIA OFICIAL • DOCENTE
-                          </span>
-                          <span className="report-serial-tag">
-                            Nº Série: {serial}
+                            GRADE HORÁRIA • DOCENTE
                           </span>
                         </div>
                         <h1 className="report-institution">
@@ -437,26 +402,6 @@ export function ScheduleMatrixView({
                             <strong>Carga Alocada:</strong> {page.lesson_count}{" "}
                             tempos/semana
                           </span>
-                        </div>
-                      </div>
-
-                      <div className="report-qr-box">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/reports/qr?type=teacher&projectId=${
-                            projectId || 1
-                          }&targetId=${page.teacher.id}`}
-                          alt="QR Code de Verificação"
-                          className="report-qr-img"
-                        />
-                        <div className="report-qr-text">
-                          <div className="report-qr-title">
-                            Grade em Tempo Real
-                          </div>
-                          <div className="report-qr-desc">
-                            Aponte a câmera para consultar seu horário sempre
-                            atualizado.
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -579,8 +524,7 @@ export function ScheduleMatrixView({
                     <div className="report-footer-corp">
                       <span>
                         <strong>{projectHeader.institution_name}</strong> •
-                        Sistema Corporativo Schedule Pro • Autenticação:{" "}
-                        {serial}
+                        Sistema Schedule Pro
                       </span>
                       <span>
                         Emitido em: {generatedAt || "Tempo Real"} • Página{" "}

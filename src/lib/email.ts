@@ -1,5 +1,10 @@
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
+import {
+  DEFAULT_SENDER_EMAIL,
+  getEmailSettings,
+  recordEmailLog,
+} from "./email-settings";
 
 export interface SendEmailResult {
   sent: boolean;
@@ -26,8 +31,9 @@ const PUBLIC_UNVERIFIABLE_DOMAINS = [
   "terra.com.br",
 ];
 
-function resolvePostmarkToken(): string {
+function resolvePostmarkToken(overrideToken?: string): string {
   const candidates = [
+    overrideToken,
     process.env.POSTMARK_API_KEY,
     process.env.POSTMARK_SERVER_TOKEN,
     process.env.EMAIL_HOST_PASSWORD,
@@ -42,7 +48,17 @@ function resolvePostmarkToken(): string {
   return "";
 }
 
-function resolvePostmarkFromAddress(recipientEmail?: string): string {
+function resolvePostmarkFromAddress(
+  configuredFromEmail: string,
+  configuredFromName: string,
+  recipientEmail?: string
+): string {
+  if (configuredFromEmail) {
+    return configuredFromName
+      ? `${configuredFromName} <${configuredFromEmail}>`
+      : configuredFromEmail;
+  }
+
   const raw = (
     process.env.POSTMARK_FROM_EMAIL ||
     process.env.DEFAULT_FROM_EMAIL ||
@@ -50,22 +66,22 @@ function resolvePostmarkFromAddress(recipientEmail?: string): string {
     ""
   ).trim();
 
-  // Support comma-separated list of verified Sender Signatures (e.g. "user@gmail.com,user@ifce.edu.br")
   const senders = raw
     .split(",")
     .map((s) => s.trim())
     .filter((s) => s && !s.includes("onboarding@resend.dev"));
 
   if (senders.length === 0) {
-    return "noreply@schedulepro.com";
+    return `${configuredFromName || "Schedule Pro"} <${DEFAULT_SENDER_EMAIL}>`;
   }
 
   if (recipientEmail && senders.length > 1) {
     const recipientDomain = recipientEmail.split("@")[1]?.toLowerCase();
     if (recipientDomain) {
-      const matched = senders.find((s) =>
-        s.toLowerCase().endsWith(`@${recipientDomain}`) ||
-        s.toLowerCase().includes(`@${recipientDomain}>`)
+      const matched = senders.find(
+        (s) =>
+          s.toLowerCase().endsWith(`@${recipientDomain}`) ||
+          s.toLowerCase().includes(`@${recipientDomain}>`)
       );
       if (matched) return matched;
     }
@@ -74,16 +90,20 @@ function resolvePostmarkFromAddress(recipientEmail?: string): string {
   return senders[0];
 }
 
-function resolveResendFromAddress(): string {
+function resolveResendFromAddress(
+  configuredFromEmail: string,
+  configuredFromName: string
+): string {
   const DEFAULT_RESEND_SENDER = "Schedule Pro <onboarding@resend.dev>";
   const rawFrom = (
+    configuredFromEmail ||
     process.env.RESEND_FROM_EMAIL ||
     process.env.DEFAULT_FROM_EMAIL ||
     ""
   ).trim();
 
   if (!rawFrom) {
-    return DEFAULT_RESEND_SENDER;
+    return `${configuredFromName || "Schedule Pro"} <${DEFAULT_SENDER_EMAIL}>`;
   }
 
   const firstSender = rawFrom.split(",")[0].trim();
@@ -99,7 +119,7 @@ function resolveResendFromAddress(): string {
     return firstSender;
   }
 
-  return `Schedule Pro <${emailPart}>`;
+  return `${configuredFromName || "Schedule Pro"} <${emailPart}>`;
 }
 
 export async function sendEmail({
@@ -115,20 +135,45 @@ export async function sendEmail({
   html?: string;
   replyTo?: string;
 }): Promise<SendEmailResult> {
+  const settings = await getEmailSettings();
+  const senderEmail = settings.from_email || DEFAULT_SENDER_EMAIL;
+  const senderName = settings.from_name || "Schedule Pro";
+  const formattedSender = `${senderName} <${senderEmail}>`;
+  const resolvedReplyTo = replyTo || settings.reply_to || undefined;
+  const mode = settings.provider_mode || "auto";
+
   let lastError = "";
   let lastProvider: SendEmailResult["provider"] = "console";
 
-  // 1. Primary Provider: SMTP (Nodemailer - e.g. Gmail App Password has NO domain restrictions)
-  const smtpHost = process.env.EMAIL_HOST || process.env.SMTP_HOST || "";
+  const finalize = async (
+    result: SendEmailResult,
+    usedFrom: string
+  ): Promise<SendEmailResult> => {
+    await recordEmailLog({
+      to_email: to.join(", "),
+      from_email: usedFrom,
+      subject,
+      provider: result.provider,
+      sent: result.sent,
+      error_message: result.error,
+    });
+    return result;
+  };
+
+  // 1. SMTP (Nodemailer)
+  const smtpHost =
+    settings.smtp_host || process.env.EMAIL_HOST || process.env.SMTP_HOST || "";
   const smtpPort = Number(
-    process.env.EMAIL_PORT || process.env.SMTP_PORT || 587
+    settings.smtp_port || process.env.EMAIL_PORT || process.env.SMTP_PORT || 587
   );
   const smtpUser =
+    settings.smtp_user ||
     process.env.EMAIL_HOST_USER ||
     process.env.EMAIL_USER ||
     process.env.SMTP_USER ||
     "";
   const smtpPass =
+    settings.smtp_pass ||
     process.env.SMTP_PASSWORD ||
     (!process.env.EMAIL_HOST_PASSWORD?.startsWith("re_") &&
     !UUID_REGEX.test(process.env.EMAIL_HOST_PASSWORD || "")
@@ -137,7 +182,7 @@ export async function sendEmail({
     process.env.EMAIL_PASS ||
     "";
 
-  if (smtpHost && smtpUser && smtpPass) {
+  if ((mode === "auto" || mode === "smtp") && smtpHost && smtpUser && smtpPass) {
     try {
       const transporter = nodemailer.createTransport({
         host: smtpHost,
@@ -152,19 +197,16 @@ export async function sendEmail({
         },
       });
 
-      const fromAddr =
-        (process.env.DEFAULT_FROM_EMAIL || "").split(",")[0].trim() || smtpUser;
-
       await transporter.sendMail({
-        from: fromAddr,
+        from: formattedSender,
         to: to.join(", "),
         subject,
         text,
         html,
-        ...(replyTo ? { replyTo } : {}),
+        ...(resolvedReplyTo ? { replyTo: resolvedReplyTo } : {}),
       });
 
-      return { sent: true, provider: "smtp" };
+      return await finalize({ sent: true, provider: "smtp" }, formattedSender);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn(`[SMTP WARNING] Falha no envio SMTP: ${msg}`);
@@ -174,9 +216,13 @@ export async function sendEmail({
   }
 
   // 2. Postmark HTTP API (X-Postmark-Server-Token)
-  const postmarkToken = resolvePostmarkToken();
-  if (postmarkToken) {
-    const fromEmail = resolvePostmarkFromAddress(to[0]);
+  const postmarkToken = resolvePostmarkToken(settings.postmark_token);
+  if ((mode === "auto" || mode === "postmark") && postmarkToken) {
+    const fromEmail = resolvePostmarkFromAddress(
+      senderEmail,
+      senderName,
+      to[0]
+    );
     try {
       const response = await fetch("https://api.postmarkapp.com/email", {
         method: "POST",
@@ -193,7 +239,7 @@ export async function sendEmail({
             html ||
             (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
           TextBody: text || undefined,
-          ...(replyTo ? { ReplyTo: replyTo } : {}),
+          ...(resolvedReplyTo ? { ReplyTo: resolvedReplyTo } : {}),
           MessageStream: "outbound",
         }),
       });
@@ -201,11 +247,14 @@ export async function sendEmail({
       const data = await response.json();
 
       if (response.ok && data.ErrorCode === 0) {
-        return {
-          sent: true,
-          provider: "postmark",
-          id: data.MessageID,
-        };
+        return await finalize(
+          {
+            sent: true,
+            provider: "postmark",
+            id: data.MessageID,
+          },
+          fromEmail
+        );
       }
 
       console.warn(
@@ -223,6 +272,9 @@ export async function sendEmail({
 
   // 3. Official Resend SDK (re_*)
   const resendKey = (
+    (settings.resend_api_key?.startsWith("re_")
+      ? settings.resend_api_key
+      : "") ||
     (process.env.RESEND_API_KEY?.startsWith("re_")
       ? process.env.RESEND_API_KEY
       : "") ||
@@ -232,9 +284,9 @@ export async function sendEmail({
     ""
   ).trim();
 
-  if (resendKey) {
+  if ((mode === "auto" || mode === "resend") && resendKey) {
     const resend = new Resend(resendKey);
-    const primaryFrom = resolveResendFromAddress();
+    const primaryFrom = resolveResendFromAddress(senderEmail, senderName);
     const fallbackFrom = "Schedule Pro <onboarding@resend.dev>";
 
     try {
@@ -246,15 +298,18 @@ export async function sendEmail({
           html ||
           (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
         text: text || undefined,
-        ...(replyTo ? { replyTo } : {}),
+        ...(resolvedReplyTo ? { replyTo: resolvedReplyTo } : {}),
       });
 
       if (!error && data?.id) {
-        return {
-          sent: true,
-          provider: "resend",
-          id: data.id,
-        };
+        return await finalize(
+          {
+            sent: true,
+            provider: "resend",
+            id: data.id,
+          },
+          primaryFrom
+        );
       }
 
       if (error && primaryFrom !== fallbackFrom) {
@@ -266,15 +321,18 @@ export async function sendEmail({
             html ||
             (text ? `<pre style="font-family:sans-serif">${text}</pre>` : ""),
           text: text || undefined,
-          ...(replyTo ? { replyTo } : {}),
+          ...(resolvedReplyTo ? { replyTo: resolvedReplyTo } : {}),
         });
 
         if (!retry.error && retry.data?.id) {
-          return {
-            sent: true,
-            provider: "resend",
-            id: retry.data.id,
-          };
+          return await finalize(
+            {
+              sent: true,
+              provider: "resend",
+              id: retry.data.id,
+            },
+            fallbackFrom
+          );
         }
 
         if (!lastError) {
@@ -297,6 +355,7 @@ export async function sendEmail({
   // 4. Console fallback
   console.info(
     `\n==================== [EMAIL CONSOLE FALLBACK] ====================\n` +
+      `De: ${formattedSender}\n` +
       `Para: ${to.join(", ")}\n` +
       `Assunto: ${subject}\n` +
       `------------------------------------------------------------------\n` +
@@ -304,11 +363,14 @@ export async function sendEmail({
       `==================================================================\n`
   );
 
-  return {
-    sent: false,
-    provider: lastProvider,
-    error: lastError || "Nenhum provedor de e-mail ativo configurado.",
-  };
+  return await finalize(
+    {
+      sent: false,
+      provider: lastProvider,
+      error: lastError || "Nenhum provedor de e-mail ativo configurado.",
+    },
+    formattedSender
+  );
 }
 
 export const sendEmailViaBrevo = sendEmail;

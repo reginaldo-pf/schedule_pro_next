@@ -91,7 +91,7 @@ export function LessonsReportFilterBar({
                 updateFilter({ group: e.target.value, classId: "" })
               }
             >
-              <option value="">Todos os Cursos</option>
+              <option value="">Selecione o Curso / Grupo...</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -105,9 +105,14 @@ export function LessonsReportFilterBar({
             <select
               className="form-select form-select-sm"
               value={selectedClass || ""}
+              disabled={!selectedGroup}
               onChange={(e) => updateFilter({ classId: e.target.value })}
             >
-              <option value="">Todas as Turmas</option>
+              <option value="">
+                {selectedGroup
+                  ? "Selecione a Turma..."
+                  : "Selecione um curso primeiro..."}
+              </option>
               {filteredClasses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -125,7 +130,7 @@ export function LessonsReportFilterBar({
               value={selectedTeacher || ""}
               onChange={(e) => updateFilter({ teacher: e.target.value })}
             >
-              <option value="">Todos os Professores</option>
+              <option value="">Selecione o Professor...</option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -141,7 +146,7 @@ export function LessonsReportFilterBar({
               value={selectedRoom || ""}
               onChange={(e) => updateFilter({ room: e.target.value })}
             >
-              <option value="">Todas as Salas</option>
+              <option value="">Selecione a Sala...</option>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}

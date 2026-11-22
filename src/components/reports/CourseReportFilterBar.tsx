@@ -48,7 +48,7 @@ export function CourseReportFilterBar({
               value={selectedGroup || ""}
               onChange={(e) => updateFilter(e.target.value, "")}
             >
-              <option value="">Todos os Cursos / Grupos</option>
+              <option value="">Selecione o Curso / Grupo...</option>
               {groups.map((g) => (
                 <option key={g.id} value={g.id}>
                   {g.name}
@@ -63,6 +63,7 @@ export function CourseReportFilterBar({
             <select
               className="form-select form-select-sm"
               value={selectedClass || ""}
+              disabled={!selectedGroup}
               onChange={(e) =>
                 updateFilter(
                   selectedGroup ? String(selectedGroup) : "",
@@ -70,7 +71,11 @@ export function CourseReportFilterBar({
                 )
               }
             >
-              <option value="">Todas as turmas do curso</option>
+              <option value="">
+                {selectedGroup
+                  ? "Todas as turmas do curso"
+                  : "Selecione um curso primeiro..."}
+              </option>
               {filteredClasses.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}

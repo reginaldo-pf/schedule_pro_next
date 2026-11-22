@@ -490,6 +490,19 @@ export function AppShell({
                   </li>
                   <li className="nav-item">
                     <Link
+                      href="/accounts/manage/emails"
+                      className={`nav-link ${
+                        pathname.startsWith("/accounts/manage/emails")
+                          ? "active"
+                          : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-envelope-gear" />
+                      <p>Gestão de E-mails</p>
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link
                       href="/plans"
                       className={`nav-link ${
                         pathname.startsWith("/plans") ? "active" : ""

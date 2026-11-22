@@ -277,7 +277,7 @@ export function LessonsClient({
                   setFilterClass("");
                 }}
               >
-                <option value="">Todos os Cursos / Grupos</option>
+                <option value="">Selecione o Curso / Grupo...</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -289,9 +289,14 @@ export function LessonsClient({
               <select
                 className="form-select form-select-sm"
                 value={filterClass}
+                disabled={!filterGroup}
                 onChange={(e) => setFilterClass(e.target.value)}
               >
-                <option value="">Todas as Turmas</option>
+                <option value="">
+                  {filterGroup
+                    ? "Selecione a Turma..."
+                    : "Selecione um curso primeiro..."}
+                </option>
                 {availableClassesForFilter.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -305,7 +310,7 @@ export function LessonsClient({
                 value={filterTeacher}
                 onChange={(e) => setFilterTeacher(e.target.value)}
               >
-                <option value="">Todos os Professores</option>
+                <option value="">Selecione o Professor...</option>
                 {teachers.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -319,7 +324,7 @@ export function LessonsClient({
                 value={filterRoom}
                 onChange={(e) => setFilterRoom(e.target.value)}
               >
-                <option value="">Todas as Salas</option>
+                <option value="">Selecione a Sala...</option>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -472,6 +477,7 @@ export function LessonsClient({
             <select
               className="form-select"
               required
+              disabled={!form.group_id}
               value={form.subject_id}
               onChange={(e) => {
                 const sId = e.target.value;
@@ -486,7 +492,11 @@ export function LessonsClient({
                 });
               }}
             >
-              <option value="">Selecione a disciplina...</option>
+              <option value="">
+                {form.group_id
+                  ? "Selecione a disciplina..."
+                  : "Selecione um curso primeiro..."}
+              </option>
               {modalSubjects.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
