@@ -47,35 +47,50 @@ export default async function DashboardPage() {
       totalRooms,
     ] = await Promise.all([
       prisma.groups_group.findMany({
-        where: { project_id: activeProject.id },
+        where: { project_id: activeProject.id, status: "PUBLISHED" },
         include: {
           _count: {
             select: {
-              classes_schoolclass: true,
-              subjects_subject: true,
+              classes_schoolclass: { where: { active: true } },
+              subjects_subject: { where: { active: true } },
             },
           },
         },
-        orderBy: { name: "asc" },
+        orderBy: [{ name: "asc" }, { academic_period: "desc" }],
       }),
       prisma.periods_period.findMany({
         where: { project_id: activeProject.id },
       }),
       prisma.classes_schoolclass.count({
-        where: { project_id: activeProject.id },
+        where: {
+          project_id: activeProject.id,
+          active: true,
+          groups_group: { status: "PUBLISHED" },
+        },
       }),
       prisma.teachers_teacher.count({
-        where: { project_id: activeProject.id },
+        where: { project_id: activeProject.id, active: true },
       }),
       prisma.subjects_subject.count({
-        where: { project_id: activeProject.id },
+        where: {
+          project_id: activeProject.id,
+          active: true,
+          groups_group: { status: "PUBLISHED" },
+        },
       }),
       prisma.lessons_lesson.findMany({
-        where: { project_id: activeProject.id, active: true },
+        where: {
+          project_id: activeProject.id,
+          active: true,
+          subjects_subject: {
+            active: true,
+            groups_group: { status: "PUBLISHED" },
+          },
+        },
         include: { subjects_subject: true },
       }),
       prisma.rooms_room.count({
-        where: { project_id: activeProject.id },
+        where: { project_id: activeProject.id, active: true },
       }),
     ]);
 
@@ -120,7 +135,7 @@ export default async function DashboardPage() {
 
       groupsData.push({
         id: Number(g.id),
-        name: g.name,
+        name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
         classes_count: g._count.classes_schoolclass,
         subjects_count: g._count.subjects_subject,
         weekly_lessons: groupLessonsSum,
