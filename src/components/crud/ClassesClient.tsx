@@ -7,6 +7,10 @@ import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
 import { TablePagination, usePagination } from "@/components/crud/TablePagination";
 import { AvailabilityMatrixModal } from "@/components/availability/AvailabilityMatrixModal";
+import {
+  GROUP_STATUS_META,
+  normalizeGroupStatus,
+} from "@/lib/schedule/group-helpers";
 
 interface ClassItem {
   id: number;
@@ -15,6 +19,8 @@ interface ClassItem {
   level: string;
   group_id: number;
   group_name: string;
+  group_period: string;
+  group_status: string;
   room_id: number | null;
   room_name: string;
   shifts: string[];
@@ -48,7 +54,7 @@ export function ClassesClient({
 }: {
   projectName: string;
   classes: ClassItem[];
-  groups: { id: number; name: string }[];
+  groups: { id: number; name: string; status: string }[];
   rooms: { id: number; name: string }[];
 }) {
   const router = useRouter();
@@ -56,18 +62,42 @@ export function ClassesClient({
 
   const [query, setQuery] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ACTIVE" | "PUBLISHED" | "PREVIEW" | "ALL">("ACTIVE");
   const [modalOpen, setModalOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [form, setForm] = useState(emptyClass);
   const [availClass, setAvailClass] = useState<ClassItem | null>(null);
 
-  const filtered = classes.filter((c) => {
-    if (filterGroup && String(c.group_id) !== filterGroup) return false;
-    if (query) {
-      return c.name.toLowerCase().includes(query.toLowerCase());
-    }
+  const visibleGroups = groups.filter((g) => {
+    const st = normalizeGroupStatus(g.status);
+    if (statusFilter === "ACTIVE") return st !== "INACTIVE";
+    if (statusFilter === "PUBLISHED") return st === "PUBLISHED";
+    if (statusFilter === "PREVIEW") return st === "PREVIEW";
     return true;
   });
+
+  const hasSelection = Boolean(filterGroup || query.trim());
+
+  const filtered = hasSelection
+    ? classes.filter((c) => {
+        const st = normalizeGroupStatus(c.group_status);
+        if (statusFilter === "ACTIVE" && st === "INACTIVE") return false;
+        if (statusFilter === "PUBLISHED" && st !== "PUBLISHED") return false;
+        if (statusFilter === "PREVIEW" && st !== "PREVIEW") return false;
+        if (filterGroup && filterGroup !== "ALL" && String(c.group_id) !== filterGroup) {
+          return false;
+        }
+        if (query.trim()) {
+          const q = query.trim().toLowerCase();
+          return (
+            c.name.toLowerCase().includes(q) ||
+            c.group_name.toLowerCase().includes(q) ||
+            c.group_period.toLowerCase().includes(q)
+          );
+        }
+        return true;
+      })
+    : [];
 
   const {
     page,
@@ -83,9 +113,17 @@ export function ClassesClient({
 
   const openCreate = () => {
     setCurrentIndex(null);
+    const defaultGroupId =
+      filterGroup && filterGroup !== "ALL"
+        ? filterGroup
+        : visibleGroups[0]
+        ? String(visibleGroups[0].id)
+        : groups[0]
+        ? String(groups[0].id)
+        : "";
     setForm({
       ...emptyClass,
-      group_id: filterGroup || (groups[0] ? String(groups[0].id) : ""),
+      group_id: defaultGroupId,
     });
     setModalOpen(true);
   };
@@ -197,26 +235,42 @@ export function ClassesClient({
         <div className="card-header bg-white border-bottom py-3 d-flex flex-wrap gap-2">
           <select
             className="form-select form-select-sm"
-            style={{ maxWidth: 260 }}
+            style={{ maxWidth: 290 }}
             value={filterGroup}
             onChange={(e) => setFilterGroup(e.target.value)}
           >
-            <option value="">Selecione o Curso / Grupo...</option>
-            {groups.map((g) => (
+            <option value="">Selecione o Curso / Período...</option>
+            {visibleGroups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
               </option>
             ))}
+            <option value="ALL">Todos os Cursos</option>
           </select>
 
-          <div className="input-group input-group-sm" style={{ maxWidth: 320 }}>
+          <select
+            className="form-select form-select-sm"
+            style={{ maxWidth: 220 }}
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value as "ACTIVE" | "PUBLISHED" | "PREVIEW" | "ALL");
+              setFilterGroup("");
+            }}
+          >
+            <option value="ACTIVE">Períodos Ativos (Pub + Prévia)</option>
+            <option value="PUBLISHED">Somente Publicados</option>
+            <option value="PREVIEW">Somente Prévia</option>
+            <option value="ALL">Todos (incluindo Inativos)</option>
+          </select>
+
+          <div className="input-group input-group-sm" style={{ maxWidth: 300 }}>
             <span className="input-group-text bg-light">
               <i className="bi bi-search" />
             </span>
             <input
               type="text"
               className="form-control"
-              placeholder="Buscar turma..."
+              placeholder="Buscar turma ou período..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
@@ -228,7 +282,7 @@ export function ClassesClient({
             <thead className="table-light">
               <tr>
                 <th className="ps-4">Turma</th>
-                <th>Curso / Grupo</th>
+                <th>Curso / Período</th>
                 <th className="text-center">Nível / Semestre</th>
                 <th>Turnos</th>
                 <th>Sala Padrão</th>
@@ -237,17 +291,28 @@ export function ClassesClient({
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {!hasSelection ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-5 text-muted">
+                    <i className="bi bi-funnel me-2" />
+                    Selecione um <strong>Curso / Período</strong> acima ou
+                    digite na busca para visualizar as turmas.
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-4 text-muted">
                     Nenhuma turma encontrada.
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((c, idx) => (
+                paginatedItems.map((c, idx) => {
+                  const st = normalizeGroupStatus(c.group_status);
+                  const stMeta = GROUP_STATUS_META[st];
+                  return (
                   <tr key={c.id}>
                     <td className="ps-4">
-                      <div className="d-flex align-items-center gap-2">
+                      <div className="d-flex align-items-center gap-2 flex-wrap">
                         <span
                           className="rounded-circle d-inline-block flex-shrink-0"
                           style={{
@@ -257,9 +322,21 @@ export function ClassesClient({
                           }}
                         />
                         <span className="fw-bold">{c.name}</span>
+                        {c.group_period && (
+                          <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                            {c.group_period}
+                          </span>
+                        )}
                       </div>
                     </td>
-                    <td>{c.group_name}</td>
+                    <td>
+                      <div>{c.group_name}</div>
+                      {st !== "PUBLISHED" && (
+                        <span className={`badge ${stMeta.badgeClass} mt-1`}>
+                          {stMeta.label}
+                        </span>
+                      )}
+                    </td>
                     <td className="text-center">{c.level}</td>
                     <td>
                       <div className="d-flex flex-wrap gap-1">
@@ -316,7 +393,8 @@ export function ClassesClient({
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

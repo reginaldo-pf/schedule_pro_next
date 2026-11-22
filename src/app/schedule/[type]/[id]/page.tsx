@@ -25,13 +25,14 @@ export default async function PublicSchedulePage({
         groups_group: true,
       },
     });
-    if (!sc) notFound();
+    if (!sc || sc.groups_group.status !== "PUBLISHED") notFound();
 
     const project = sc.schedules_project;
     const days = getActiveProjectDaysList(project);
     const { pages, generatedAt } = await buildCourseReportPages({
       projectId: project.id,
       classId: Number(sc.id),
+      publishedOnly: true,
     });
 
     return (
@@ -77,6 +78,7 @@ export default async function PublicSchedulePage({
     const { pages, generatedAt } = await buildTeacherReportPages({
       projectId: project.id,
       teacherId: Number(teacher.id),
+      publishedOnly: true,
     });
 
     return (

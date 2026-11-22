@@ -2,6 +2,7 @@ import { requireShellContext } from "@/lib/shell-context";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/AppShell";
 import { SubjectsClient } from "@/components/crud/SubjectsClient";
+import { formatGroupSelectLabel } from "@/lib/schedule/group-helpers";
 
 export default async function SubjectsPage() {
   const {
@@ -38,6 +39,8 @@ export default async function SubjectsPage() {
     color: s.color,
     group_id: Number(s.group_id),
     group_name: s.groups_group.name,
+    group_period: s.groups_group.academic_period || "",
+    group_status: s.groups_group.status || "PUBLISHED",
     room_id: s.room_id ? Number(s.room_id) : null,
     room_name: s.rooms_room?.name || "",
     active: s.active,
@@ -59,7 +62,8 @@ export default async function SubjectsPage() {
         subjects={serializedSubjects}
         groups={groups.map((g) => ({
           id: Number(g.id),
-          name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          name: formatGroupSelectLabel(g),
+          status: g.status || "PUBLISHED",
         }))}
         rooms={rooms.map((r) => ({ id: Number(r.id), name: r.name }))}
       />

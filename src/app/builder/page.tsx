@@ -2,6 +2,7 @@ import { requireShellContext } from "@/lib/shell-context";
 import { prisma, formatTime } from "@/lib/prisma";
 import { ACTIVE_RUN_STATUSES } from "@/lib/schedule/collision-engine";
 import { getActiveProjectDaysList } from "@/lib/schedule/report-builder";
+import { formatGroupSelectLabel } from "@/lib/schedule/group-helpers";
 import { AppShell } from "@/components/layout/AppShell";
 import { ScheduleBuilderClient } from "@/components/builder/ScheduleBuilderClient";
 
@@ -42,11 +43,15 @@ export default async function ScheduleBuilderPage({
       orderBy: [{ start_time: "asc" }, { order: "asc" }],
     }),
     prisma.groups_group.findMany({
-      where: { project_id: project.id },
-      orderBy: { name: "asc" },
+      where: { project_id: project.id, status: { not: "INACTIVE" } },
+      orderBy: [{ name: "asc" }, { academic_period: "desc" }],
     }),
     prisma.classes_schoolclass.findMany({
-      where: { project_id: project.id, active: true },
+      where: {
+        project_id: project.id,
+        active: true,
+        groups_group: { status: { not: "INACTIVE" } },
+      },
       orderBy: { name: "asc" },
     }),
     prisma.teachers_teacher.findMany({
@@ -58,7 +63,13 @@ export default async function ScheduleBuilderPage({
       orderBy: { name: "asc" },
     }),
     prisma.lessons_lesson.findMany({
-      where: { project_id: project.id, active: true },
+      where: {
+        project_id: project.id,
+        active: true,
+        subjects_subject: {
+          groups_group: { status: { not: "INACTIVE" } },
+        },
+      },
       include: {
         subjects_subject: true,
         rooms_room: true,
@@ -213,8 +224,9 @@ export default async function ScheduleBuilderPage({
         periods={serializedPeriods}
         groups={groups.map((g) => ({
           id: Number(g.id),
-          name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          name: formatGroupSelectLabel(g),
           academic_period: g.academic_period || "",
+          status: g.status || "PUBLISHED",
         }))}
         classes={serializedClasses}
         teachers={serializedTeachers}

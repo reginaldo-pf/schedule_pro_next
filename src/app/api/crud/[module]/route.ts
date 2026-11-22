@@ -197,6 +197,11 @@ export async function POST(
           );
         }
 
+        const status =
+          body.status === "PREVIEW" || body.status === "INACTIVE"
+            ? body.status
+            : "PUBLISHED";
+
         const created = await prisma.groups_group.create({
           data: {
             project_id: project.id,
@@ -205,6 +210,8 @@ export async function POST(
             academic_period: academicPeriod,
             start_date: startDate,
             end_date: endDate,
+            status,
+            published_at: status === "PUBLISHED" ? now : null,
             created_at: now,
             updated_at: now,
           },
@@ -663,6 +670,11 @@ export async function PUT(
             academic_period: academicPeriod,
             start_date: startDate,
             end_date: endDate,
+            ...(body.status === "PREVIEW" ||
+            body.status === "PUBLISHED" ||
+            body.status === "INACTIVE"
+              ? { status: body.status }
+              : {}),
             updated_at: now,
           },
         });

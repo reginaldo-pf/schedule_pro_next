@@ -4,6 +4,10 @@ import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/AppShell";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { LessonsReportFilterBar } from "@/components/reports/LessonsReportFilterBar";
+import {
+  buildGroupCheckboxOptions,
+  resolveGroupIdsParam,
+} from "@/lib/schedule/group-helpers";
 
 export default async function LessonsMatrixReportPage({
   searchParams,
@@ -21,32 +25,38 @@ export default async function LessonsMatrixReportPage({
   const sp = await searchParams;
   const project = activeProject!;
   const projectNumId = Number(project.id);
+  const rawGroups = (sp.groups || "").trim();
   const rawGroup = (sp.group || "").trim();
   const rawQuery = (sp.q || "").trim();
-  const selectedGroupValue =
-    rawGroup === "ALL" ? "ALL" : rawGroup && Number(rawGroup) ? rawGroup : "";
-  const groupId =
-    selectedGroupValue && selectedGroupValue !== "ALL"
-      ? Number(selectedGroupValue)
-      : null;
   const classId = sp.class ? Number(sp.class) : null;
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
   const roomId = sp.room ? Number(sp.room) : null;
-  const hasCourseSelection = Boolean(selectedGroupValue);
+
+  const groups = await prisma.groups_group.findMany({
+    where: { project_id: project.id, status: { not: "INACTIVE" } },
+    orderBy: [{ name: "asc" }, { academic_period: "desc" }],
+  });
+
+  const matchingGroupIds = resolveGroupIdsParam(groups, rawGroups, rawGroup);
+  const selectedGroupIds = matchingGroupIds.map((id) => Number(id));
+  const hasCourseOrPeriodFilter = selectedGroupIds.length > 0;
   const hasFilterApplied = Boolean(
-    hasCourseSelection || classId || teacherId || roomId || rawQuery
+    hasCourseOrPeriodFilter || classId || teacherId || roomId || rawQuery
   );
 
-  const [groups, classes, teachersList, rooms, lessons] = await Promise.all([
-    prisma.groups_group.findMany({
-      where: { project_id: project.id },
-      orderBy: { name: "asc" },
-    }),
+  const groupOptions = buildGroupCheckboxOptions(groups);
+
+  const [classes, teachersList, rooms, lessons] = await Promise.all([
     prisma.classes_schoolclass.findMany({
-      where: { project_id: project.id },
+      where: {
+        project_id: project.id,
+        active: true,
+        groups_group: { status: { not: "INACTIVE" } },
+      },
+      include: { groups_group: true },
       orderBy: { name: "asc" },
     }),
-    hasCourseSelection
+    hasCourseOrPeriodFilter && matchingGroupIds.length > 0
       ? prisma.teachers_teacher.findMany({
           where: {
             project_id: project.id,
@@ -56,9 +66,9 @@ export default async function LessonsMatrixReportPage({
                 lessons_lesson: {
                   project_id: project.id,
                   active: true,
-                  ...(groupId
-                    ? { subjects_subject: { group_id: BigInt(groupId) } }
-                    : {}),
+                  subjects_subject: {
+                    group_id: { in: matchingGroupIds },
+                  },
                 },
               },
             },
@@ -70,14 +80,16 @@ export default async function LessonsMatrixReportPage({
       where: { project_id: project.id, active: true },
       orderBy: { name: "asc" },
     }),
-    hasFilterApplied
+    hasFilterApplied && (!hasCourseOrPeriodFilter || matchingGroupIds.length > 0)
       ? prisma.lessons_lesson.findMany({
           where: {
             project_id: project.id,
             active: true,
-            ...(groupId
-              ? { subjects_subject: { group_id: BigInt(groupId) } }
-              : {}),
+            subjects_subject: {
+              ...(hasCourseOrPeriodFilter
+                ? { group_id: { in: matchingGroupIds } }
+                : { groups_group: { status: { not: "INACTIVE" } } }),
+            },
             ...(classId
               ? {
                   lessons_lesson_classes: {
@@ -115,7 +127,9 @@ export default async function LessonsMatrixReportPage({
               : {}),
           },
           include: {
-            subjects_subject: { include: { rooms_room: true } },
+            subjects_subject: {
+              include: { rooms_room: true, groups_group: true },
+            },
             rooms_room: true,
             lessons_lesson_classes: { include: { classes_schoolclass: true } },
             lessons_lesson_teachers: { include: { teachers_teacher: true } },
@@ -161,8 +175,12 @@ export default async function LessonsMatrixReportPage({
         teacherName: t.name,
         rows: [],
       };
+      const groupPeriod = lesson.subjects_subject.groups_group?.academic_period;
+      const subjectDisplay = groupPeriod
+        ? `${lesson.subjects_subject.name} (${lesson.subjects_subject.groups_group.name} • ${groupPeriod})`
+        : `${lesson.subjects_subject.name} (${lesson.subjects_subject.groups_group.name})`;
       entry.rows.push({
-        subject: lesson.subjects_subject.name,
+        subject: subjectDisplay,
         classes: classNames || "-",
         room: roomName,
         number_of_lessons: lesson.number_of_lessons,
@@ -185,10 +203,13 @@ export default async function LessonsMatrixReportPage({
     const params = new URLSearchParams();
     params.set("type", "lessons");
     params.set("projectId", String(projectNumId));
-    if (groupId) params.set("group", String(groupId));
+    if (selectedGroupIds.length > 0) {
+      params.set("groups", selectedGroupIds.join(","));
+    }
     if (classId) params.set("class", String(classId));
     if (teacherId) params.set("teacher", String(teacherId));
     if (roomId) params.set("room", String(roomId));
+    if (rawQuery) params.set("q", rawQuery);
     return `/api/reports/pdf?${params.toString()}`;
   };
 
@@ -214,21 +235,20 @@ export default async function LessonsMatrixReportPage({
         />
 
         <LessonsReportFilterBar
-          groups={groups.map((g) => ({
-            id: Number(g.id),
-            name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
-          }))}
+          groupOptions={groupOptions}
+          selectedGroupIds={selectedGroupIds}
           classes={classes.map((c) => ({
             id: Number(c.id),
             group_id: Number(c.group_id),
-            name: c.name,
+            name: c.groups_group.academic_period
+              ? `${c.name} (${c.groups_group.name} • ${c.groups_group.academic_period})`
+              : `${c.name} (${c.groups_group.name})`,
           }))}
           teachers={teachersList.map((t) => ({
             id: Number(t.id),
             name: t.name,
           }))}
           rooms={rooms.map((r) => ({ id: Number(r.id), name: r.name }))}
-          selectedGroup={selectedGroupValue}
           selectedClass={classId}
           selectedTeacher={teacherId}
           selectedRoom={roomId}

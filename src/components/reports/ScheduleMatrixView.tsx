@@ -41,6 +41,7 @@ export function ScheduleMatrixView({
   defaultOrientation = "portrait",
   projectId,
   selectedGroup,
+  selectedGroups = [],
   selectedClass,
   selectedTeacher,
   hasFilterApplied = true,
@@ -60,6 +61,7 @@ export function ScheduleMatrixView({
   defaultOrientation?: "portrait" | "landscape";
   projectId?: number;
   selectedGroup?: number | null;
+  selectedGroups?: number[];
   selectedClass?: number | null;
   selectedTeacher?: number | null;
   hasFilterApplied?: boolean;
@@ -76,6 +78,9 @@ export function ScheduleMatrixView({
     params.set("type", overrideType || mode);
     params.set("orientation", orientation);
     if (projectId) params.set("projectId", String(projectId));
+    if (selectedGroups.length > 0) {
+      params.set("groups", selectedGroups.join(","));
+    }
     if (selectedGroup) params.set("group", String(selectedGroup));
     if (selectedClass) params.set("class", String(selectedClass));
     if (overrideTeacherId) {

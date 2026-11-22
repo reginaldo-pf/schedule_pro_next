@@ -3,23 +3,27 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
+import {
+  MultiSelectCheckbox,
+  type MultiSelectOption,
+} from "@/components/reports/MultiSelectCheckbox";
 
 export function LessonsReportFilterBar({
-  groups,
+  groupOptions,
+  selectedGroupIds,
   classes,
   teachers,
   rooms,
-  selectedGroup,
   selectedClass,
   selectedTeacher,
   selectedRoom,
   initialQuery = "",
 }: {
-  groups: { id: number; name: string }[];
+  groupOptions: MultiSelectOption[];
+  selectedGroupIds: number[];
   classes: { id: number; group_id: number; name: string }[];
   teachers: { id: number; name: string }[];
   rooms: { id: number; name: string }[];
-  selectedGroup: string;
   selectedClass: number | null;
   selectedTeacher: number | null;
   selectedRoom: number | null;
@@ -29,11 +33,14 @@ export function LessonsReportFilterBar({
   const { startLoading, stopLoading } = useUI();
   const [query, setQuery] = useState(initialQuery);
 
+  const selectedValues = selectedGroupIds.map(String);
+  const groupsKey = selectedValues.join(",");
+
   useEffect(() => {
     setQuery(initialQuery);
     stopLoading();
   }, [
-    selectedGroup,
+    groupsKey,
     selectedClass,
     selectedTeacher,
     selectedRoom,
@@ -41,16 +48,14 @@ export function LessonsReportFilterBar({
     stopLoading,
   ]);
 
-  const isAllCourses = selectedGroup === "ALL";
-  const hasCourseSelection = Boolean(selectedGroup);
-
+  const hasCourseSelection = selectedGroupIds.length > 0;
+  const matchingSet = new Set(selectedGroupIds);
   const filteredClasses = classes.filter(
-    (c) =>
-      !selectedGroup || isAllCourses || String(c.group_id) === selectedGroup
+    (c) => matchingSet.size === 0 || matchingSet.has(c.group_id)
   );
 
   const updateFilter = (next: {
-    group?: string;
+    groups?: string[];
     classId?: string;
     teacher?: string;
     room?: string;
@@ -58,7 +63,7 @@ export function LessonsReportFilterBar({
   }) => {
     startLoading();
     const params = new URLSearchParams();
-    const g = next.group !== undefined ? next.group : selectedGroup;
+    const gs = next.groups !== undefined ? next.groups : selectedValues;
     const c =
       next.classId !== undefined
         ? next.classId
@@ -79,7 +84,7 @@ export function LessonsReportFilterBar({
         : "";
     const q = next.q !== undefined ? next.q : query;
 
-    if (g) params.set("group", g);
+    if (gs.length > 0) params.set("groups", gs.join(","));
     if (c) params.set("class", c);
     if (t) params.set("teacher", t);
     if (r) params.set("room", r);
@@ -102,31 +107,24 @@ export function LessonsReportFilterBar({
   return (
     <div className="card border-0 shadow-sm mb-3 no-print">
       <div className="card-body p-3">
-        <div className="row g-3 align-items-end">
+        <div className="row g-2 align-items-end">
           <div className="col-12 col-md-3">
             <label className="form-label small fw-semibold mb-1">
-              Curso / Grupo
+              Cursos / Períodos
             </label>
-            <select
-              className="form-select form-select-sm"
-              value={selectedGroup}
-              onChange={(e) =>
+            <MultiSelectCheckbox
+              options={groupOptions}
+              selected={selectedValues}
+              placeholder="Selecione Cursos / Períodos..."
+              onChange={(nextGroups) =>
                 updateFilter({
-                  group: e.target.value,
+                  groups: nextGroups,
                   classId: "",
                   teacher: "",
                   room: "",
                 })
               }
-            >
-              <option value="">Selecione o Curso / Grupo...</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-              <option value="ALL">Todos os Cursos</option>
-            </select>
+            />
           </div>
 
           <div className="col-12 col-md-2">
@@ -139,8 +137,8 @@ export function LessonsReportFilterBar({
             >
               <option value="">
                 {hasCourseSelection
-                  ? "Selecione a Turma..."
-                  : "Selecione um curso primeiro..."}
+                  ? "Todas as Turmas..."
+                  : "Selecione curso/período..."}
               </option>
               {filteredClasses.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -162,8 +160,8 @@ export function LessonsReportFilterBar({
             >
               <option value="">
                 {hasCourseSelection
-                  ? "Selecione o Professor..."
-                  : "Selecione um curso primeiro..."}
+                  ? "Todos os Professores..."
+                  : "Selecione curso/período..."}
               </option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -182,9 +180,7 @@ export function LessonsReportFilterBar({
               onChange={(e) => updateFilter({ room: e.target.value })}
             >
               <option value="">
-                {hasCourseSelection
-                  ? "Selecione a Sala..."
-                  : "Selecione um curso primeiro..."}
+                {hasCourseSelection ? "Todas..." : "Selecione curso..."}
               </option>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -216,7 +212,7 @@ export function LessonsReportFilterBar({
               onClick={() => {
                 setQuery("");
                 updateFilter({
-                  group: "",
+                  groups: [],
                   classId: "",
                   teacher: "",
                   room: "",

@@ -5,6 +5,7 @@ import { GroupsClient } from "@/components/crud/GroupsClient";
 
 export default async function GroupsPage() {
   const {
+    user,
     activeProject,
     shellUser,
     shellProject,
@@ -22,7 +23,7 @@ export default async function GroupsPage() {
         },
       },
     },
-    orderBy: { name: "asc" },
+    orderBy: [{ name: "asc" }, { academic_period: "desc" }],
   });
 
   const serialized = groups.map((g) => ({
@@ -31,6 +32,11 @@ export default async function GroupsPage() {
     academic_period: g.academic_period || "",
     start_date: g.start_date ? g.start_date.toISOString().slice(0, 10) : "",
     end_date: g.end_date ? g.end_date.toISOString().slice(0, 10) : "",
+    status: g.status || "PUBLISHED",
+    can_delete_inactive:
+      user.is_superuser ||
+      activeProject!.owner_id === user.id ||
+      g.owner_id === user.id,
     classes_count: g._count.classes_schoolclass,
     subjects_count: g._count.subjects_subject,
   }));

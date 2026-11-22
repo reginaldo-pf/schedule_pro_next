@@ -79,12 +79,19 @@ export function getActiveProjectDaysList(project: {
 export async function buildCourseReportPages({
   projectId,
   groupId,
+  groupIds,
   classId,
+  publishedOnly = false,
 }: {
   projectId: bigint;
   groupId?: number | null;
+  groupIds?: bigint[] | null;
   classId?: number | null;
+  publishedOnly?: boolean;
 }): Promise<{ pages: CourseReportPage[]; generatedAt: string }> {
+  if (groupIds && groupIds.length === 0 && !classId) {
+    return { pages: [], generatedAt: "" };
+  }
   const latestRun = await prisma.solver_schedulegenerationrun.findFirst({
     where: {
       project_id: projectId,
@@ -97,12 +104,21 @@ export async function buildCourseReportPages({
     return { pages: [], generatedAt: "" };
   }
 
+  const groupStatusFilter = publishedOnly ? "PUBLISHED" : { not: "INACTIVE" };
+
   const [entries, periods, groups] = await Promise.all([
     prisma.solver_generatedscheduleentry.findMany({
       where: {
         run_id: latestRun.id,
         ...(classId ? { school_class_id: BigInt(classId) } : {}),
-        ...(groupId ? { classes_schoolclass: { group_id: BigInt(groupId) } } : {}),
+        classes_schoolclass: {
+          ...(groupIds && groupIds.length > 0
+            ? { group_id: { in: groupIds } }
+            : groupId
+            ? { group_id: BigInt(groupId) }
+            : {}),
+          groups_group: { status: groupStatusFilter },
+        },
       },
       include: {
         classes_schoolclass: {
@@ -133,9 +149,14 @@ export async function buildCourseReportPages({
     prisma.groups_group.findMany({
       where: {
         project_id: projectId,
-        ...(groupId ? { id: BigInt(groupId) } : {}),
+        status: groupStatusFilter,
+        ...(groupIds && groupIds.length > 0
+          ? { id: { in: groupIds } }
+          : groupId
+          ? { id: BigInt(groupId) }
+          : {}),
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ name: "asc" }, { academic_period: "desc" }],
     }),
   ]);
 
@@ -283,11 +304,18 @@ export async function buildTeacherReportPages({
   projectId,
   teacherId,
   groupId,
+  groupIds,
+  publishedOnly = false,
 }: {
   projectId: bigint;
   teacherId?: number | null;
   groupId?: number | null;
+  groupIds?: bigint[] | null;
+  publishedOnly?: boolean;
 }): Promise<{ pages: TeacherReportPage[]; generatedAt: string }> {
+  if (groupIds && groupIds.length === 0 && !teacherId) {
+    return { pages: [], generatedAt: "" };
+  }
   const latestRun = await prisma.solver_schedulegenerationrun.findFirst({
     where: {
       project_id: projectId,
@@ -300,10 +328,20 @@ export async function buildTeacherReportPages({
     return { pages: [], generatedAt: "" };
   }
 
+  const groupStatusFilter = publishedOnly ? "PUBLISHED" : { not: "INACTIVE" };
+
   const [entries, periods, teachers] = await Promise.all([
     prisma.solver_generatedscheduleentry.findMany({
       where: {
         run_id: latestRun.id,
+        classes_schoolclass: {
+          ...(groupIds && groupIds.length > 0
+            ? { group_id: { in: groupIds } }
+            : groupId
+            ? { group_id: BigInt(groupId) }
+            : {}),
+          groups_group: { status: groupStatusFilter },
+        },
       },
       include: {
         classes_schoolclass: {

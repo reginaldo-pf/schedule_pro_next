@@ -8,6 +8,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { ScheduleMatrixView } from "@/components/reports/ScheduleMatrixView";
 import { TeacherReportFilterBar } from "@/components/reports/TeacherReportFilterBar";
+import {
+  buildGroupCheckboxOptions,
+  resolveGroupIdsParam,
+} from "@/lib/schedule/group-helpers";
 
 export default async function TeacherReportPage({
   searchParams,
@@ -25,27 +29,50 @@ export default async function TeacherReportPage({
   const sp = await searchParams;
   const project = activeProject!;
 
-  const [groups, teachers] = await Promise.all([
-    prisma.groups_group.findMany({
-      where: { project_id: project.id },
-      orderBy: { name: "asc" },
-    }),
-    prisma.teachers_teacher.findMany({
-      where: { project_id: project.id, active: true },
-      orderBy: { name: "asc" },
-    }),
-  ]);
-
+  const rawGroups = (sp.groups || "").trim();
+  const rawGroup = (sp.group || "").trim();
+  const groupId = rawGroup && Number(rawGroup) ? Number(rawGroup) : null;
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
-  const groupId = sp.group ? Number(sp.group) : null;
-  const hasFilterApplied = Boolean(groupId || teacherId);
+
+  const groups = await prisma.groups_group.findMany({
+    where: { project_id: project.id, status: { not: "INACTIVE" } },
+    orderBy: [{ name: "asc" }, { academic_period: "desc" }],
+  });
+
+  const matchingGroupIds = resolveGroupIdsParam(groups, rawGroups, rawGroup);
+  const selectedGroupIds = matchingGroupIds.map((id) => Number(id));
+  const hasCourseOrPeriodFilter = selectedGroupIds.length > 0;
+  const hasFilterApplied = Boolean(hasCourseOrPeriodFilter || teacherId);
+
+  const teachers = await prisma.teachers_teacher.findMany({
+    where: {
+      project_id: project.id,
+      active: true,
+      ...(hasCourseOrPeriodFilter && matchingGroupIds.length > 0
+        ? {
+            lessons_lesson_teachers: {
+              some: {
+                lessons_lesson: {
+                  project_id: project.id,
+                  active: true,
+                  subjects_subject: { group_id: { in: matchingGroupIds } },
+                },
+              },
+            },
+          }
+        : {}),
+    },
+    orderBy: { name: "asc" },
+  });
+
+  const groupOptions = buildGroupCheckboxOptions(groups);
 
   const days = getActiveProjectDaysList(project);
   const { pages, generatedAt } = hasFilterApplied
     ? await buildTeacherReportPages({
         projectId: project.id,
         teacherId,
-        groupId,
+        groupIds: hasCourseOrPeriodFilter ? matchingGroupIds : null,
       })
     : { pages: [], generatedAt: "" };
 
@@ -71,12 +98,9 @@ export default async function TeacherReportPage({
         />
 
         <TeacherReportFilterBar
-          groups={groups.map((g) => ({
-            id: Number(g.id),
-            name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
-          }))}
+          groupOptions={groupOptions}
+          selectedGroupIds={selectedGroupIds}
           teachers={teachers.map((t) => ({ id: Number(t.id), name: t.name }))}
-          selectedGroup={groupId}
           selectedTeacher={teacherId}
         />
       </div>
@@ -93,6 +117,7 @@ export default async function TeacherReportPage({
         generatedAt={generatedAt}
         projectId={Number(project.id)}
         selectedGroup={groupId}
+        selectedGroups={selectedGroupIds}
         selectedTeacher={teacherId}
         hasFilterApplied={hasFilterApplied}
       />

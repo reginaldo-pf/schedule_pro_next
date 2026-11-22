@@ -3,34 +3,52 @@
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
+import {
+  MultiSelectCheckbox,
+  type MultiSelectOption,
+} from "@/components/reports/MultiSelectCheckbox";
 
 export function CourseReportFilterBar({
-  groups,
+  groupOptions,
+  selectedGroupIds,
   classes,
-  selectedGroup,
   selectedClass,
 }: {
-  groups: { id: number; name: string }[];
+  groupOptions: MultiSelectOption[];
+  selectedGroupIds: number[];
   classes: { id: number; group_id: number; name: string }[];
-  selectedGroup: number | null;
   selectedClass: number | null;
 }) {
   const router = useRouter();
   const { startLoading, stopLoading } = useUI();
 
+  const selectedValues = selectedGroupIds.map(String);
+  const groupsKey = selectedValues.join(",");
+
   useEffect(() => {
     stopLoading();
-  }, [selectedGroup, selectedClass, stopLoading]);
+  }, [groupsKey, selectedClass, stopLoading]);
 
+  const hasSelection = selectedGroupIds.length > 0;
+  const matchingSet = new Set(selectedGroupIds);
   const filteredClasses = classes.filter(
-    (c) => !selectedGroup || c.group_id === selectedGroup
+    (c) => matchingSet.size === 0 || matchingSet.has(c.group_id)
   );
 
-  const updateFilter = (nextGroup: string, nextClass: string) => {
+  const updateFilter = (next: { groups?: string[]; classId?: string }) => {
     startLoading();
     const params = new URLSearchParams();
-    if (nextGroup) params.set("group", nextGroup);
-    if (nextClass) params.set("class", nextClass);
+    const gs = next.groups !== undefined ? next.groups : selectedValues;
+    const c =
+      next.classId !== undefined
+        ? next.classId
+        : selectedClass
+        ? String(selectedClass)
+        : "";
+
+    if (gs.length > 0) params.set("groups", gs.join(","));
+    if (c) params.set("class", c);
+
     const qs = params.toString();
     router.push(qs ? `/reports/course?${qs}` : "/reports/course");
   };
@@ -41,20 +59,16 @@ export function CourseReportFilterBar({
         <div className="row g-3 align-items-end">
           <div className="col-md-5">
             <label className="form-label small fw-semibold mb-1">
-              Curso / Grupo
+              Cursos / Períodos
             </label>
-            <select
-              className="form-select form-select-sm"
-              value={selectedGroup || ""}
-              onChange={(e) => updateFilter(e.target.value, "")}
-            >
-              <option value="">Selecione o Curso / Grupo...</option>
-              {groups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </select>
+            <MultiSelectCheckbox
+              options={groupOptions}
+              selected={selectedValues}
+              placeholder="Selecione Cursos / Períodos..."
+              onChange={(nextGroups) =>
+                updateFilter({ groups: nextGroups, classId: "" })
+              }
+            />
           </div>
           <div className="col-md-5">
             <label className="form-label small fw-semibold mb-1">
@@ -63,18 +77,13 @@ export function CourseReportFilterBar({
             <select
               className="form-select form-select-sm"
               value={selectedClass || ""}
-              disabled={!selectedGroup}
-              onChange={(e) =>
-                updateFilter(
-                  selectedGroup ? String(selectedGroup) : "",
-                  e.target.value
-                )
-              }
+              disabled={!hasSelection}
+              onChange={(e) => updateFilter({ classId: e.target.value })}
             >
               <option value="">
-                {selectedGroup
-                  ? "Todas as turmas do curso"
-                  : "Selecione um curso primeiro..."}
+                {hasSelection
+                  ? "Todas as turmas filtradas"
+                  : "Selecione curso/período primeiro..."}
               </option>
               {filteredClasses.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -87,7 +96,7 @@ export function CourseReportFilterBar({
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm w-100"
-              onClick={() => updateFilter("", "")}
+              onClick={() => updateFilter({ groups: [], classId: "" })}
             >
               <i className="bi bi-x-circle me-1" />
               Limpar

@@ -53,7 +53,7 @@ export function ScheduleBuilderClient({
   };
   days: { code: string; label: string }[];
   periods: BuilderPeriod[];
-  groups: { id: number; name: string; academic_period?: string }[];
+  groups: { id: number; name: string; academic_period?: string; status?: string }[];
   classes: BuilderClass[];
   teachers: BuilderTeacher[];
   rooms: BuilderRoom[];
@@ -596,9 +596,17 @@ export function ScheduleBuilderClient({
                   >
                     Período
                   </small>
-                  <span className="fw-medium text-primary">
-                    {groups.find((g) => g.id === selectedGroupId)
-                      ?.academic_period || "Por Curso"}
+                  <span className="fw-medium text-primary d-inline-flex align-items-center gap-2">
+                    <span>
+                      {groups.find((g) => g.id === selectedGroupId)
+                        ?.academic_period || "Por Curso"}
+                    </span>
+                    {groups.find((g) => g.id === selectedGroupId)?.status ===
+                      "PREVIEW" && (
+                      <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">
+                        Prévia
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>

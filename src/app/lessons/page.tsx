@@ -2,6 +2,7 @@ import { requireShellContext } from "@/lib/shell-context";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/AppShell";
 import { LessonsClient } from "@/components/crud/LessonsClient";
+import { formatGroupSelectLabel } from "@/lib/schedule/group-helpers";
 
 export default async function LessonsPage({
   searchParams,
@@ -33,9 +34,11 @@ export default async function LessonsPage({
         ? prisma.lessons_lesson.findMany({
             where: {
               project_id: activeProject!.id,
-              ...(selectedGroupId
-                ? { subjects_subject: { group_id: BigInt(selectedGroupId) } }
-                : {}),
+              subjects_subject: {
+                ...(selectedGroupId
+                  ? { group_id: BigInt(selectedGroupId) }
+                  : { groups_group: { status: { not: "INACTIVE" } } }),
+              },
               ...(rawQuery
                 ? {
                     OR: [
@@ -73,8 +76,8 @@ export default async function LessonsPage({
           })
         : Promise.resolve([]),
       prisma.groups_group.findMany({
-        where: { project_id: activeProject!.id },
-        orderBy: { name: "asc" },
+        where: { project_id: activeProject!.id, status: { not: "INACTIVE" } },
+        orderBy: [{ name: "asc" }, { academic_period: "desc" }],
       }),
       prisma.classes_schoolclass.findMany({
         where: { project_id: activeProject!.id, active: true },
@@ -101,6 +104,8 @@ export default async function LessonsPage({
     subject_color: l.subjects_subject.color,
     group_id: Number(l.subjects_subject.group_id),
     group_name: l.subjects_subject.groups_group.name,
+    group_period: l.subjects_subject.groups_group.academic_period || "",
+    group_status: l.subjects_subject.groups_group.status || "PUBLISHED",
     room_id: l.room_id ? Number(l.room_id) : null,
     room_name:
       l.rooms_room?.name || l.subjects_subject.rooms_room?.name || "Não definida",
@@ -136,7 +141,7 @@ export default async function LessonsPage({
         lessons={serializedLessons}
         groups={groups.map((g) => ({
           id: Number(g.id),
-          name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          name: formatGroupSelectLabel(g),
         }))}
         classes={classes.map((c) => ({
           id: Number(c.id),

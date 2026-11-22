@@ -24,7 +24,11 @@ export async function POST(request: Request) {
 
     // Fetch lessons of the project to resolve rooms, classes, teachers accurately
     const projectLessons = await prisma.lessons_lesson.findMany({
-      where: { project_id: project.id, active: true },
+      where: {
+        project_id: project.id,
+        active: true,
+        subjects_subject: { groups_group: { status: { not: "INACTIVE" } } },
+      },
       include: {
         subjects_subject: true,
         lessons_lesson_classes: true,

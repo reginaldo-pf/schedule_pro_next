@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   if (projectId) {
     const groups = await prisma.groups_group.findMany({
-      where: { project_id: BigInt(projectId) },
+      where: { project_id: BigInt(projectId), status: "PUBLISHED" },
       orderBy: { name: "asc" },
     });
     return NextResponse.json({
@@ -82,6 +82,10 @@ export async function POST(request: Request) {
       const count = await prisma.solver_generatedscheduleentry.count({
         where: {
           run_id: latestRun.id,
+          classes_schoolclass: {
+            active: true,
+            groups_group: { status: "PUBLISHED" },
+          },
           OR: [
             { teacher_id: t.id },
             {

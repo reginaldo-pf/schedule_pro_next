@@ -8,6 +8,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { ScheduleMatrixView } from "@/components/reports/ScheduleMatrixView";
 import { CourseReportFilterBar } from "@/components/reports/CourseReportFilterBar";
+import {
+  buildGroupCheckboxOptions,
+  resolveGroupIdsParam,
+} from "@/lib/schedule/group-helpers";
 
 export default async function CourseReportPage({
   searchParams,
@@ -27,24 +31,37 @@ export default async function CourseReportPage({
 
   const [groups, classes] = await Promise.all([
     prisma.groups_group.findMany({
-      where: { project_id: project.id },
-      orderBy: { name: "asc" },
+      where: { project_id: project.id, status: { not: "INACTIVE" } },
+      orderBy: [{ name: "asc" }, { academic_period: "desc" }],
     }),
     prisma.classes_schoolclass.findMany({
-      where: { project_id: project.id },
+      where: {
+        project_id: project.id,
+        active: true,
+        groups_group: { status: { not: "INACTIVE" } },
+      },
+      include: { groups_group: true },
       orderBy: { name: "asc" },
     }),
   ]);
 
-  const groupId = sp.group ? Number(sp.group) : null;
+  const rawGroups = (sp.groups || "").trim();
+  const rawGroup = (sp.group || "").trim();
+  const groupId = rawGroup && Number(rawGroup) ? Number(rawGroup) : null;
   const classId = sp.class ? Number(sp.class) : null;
-  const hasFilterApplied = Boolean(groupId || classId);
+
+  const matchingGroupIds = resolveGroupIdsParam(groups, rawGroups, rawGroup);
+  const selectedGroupIds = matchingGroupIds.map((id) => Number(id));
+  const hasCourseOrPeriodFilter = selectedGroupIds.length > 0;
+  const hasFilterApplied = Boolean(hasCourseOrPeriodFilter || classId);
+
+  const groupOptions = buildGroupCheckboxOptions(groups);
 
   const days = getActiveProjectDaysList(project);
   const { pages, generatedAt } = hasFilterApplied
     ? await buildCourseReportPages({
         projectId: project.id,
-        groupId,
+        groupIds: hasCourseOrPeriodFilter ? matchingGroupIds : null,
         classId,
       })
     : { pages: [], generatedAt: "" };
@@ -71,16 +88,15 @@ export default async function CourseReportPage({
         />
 
         <CourseReportFilterBar
-          groups={groups.map((g) => ({
-            id: Number(g.id),
-            name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
-          }))}
+          groupOptions={groupOptions}
+          selectedGroupIds={selectedGroupIds}
           classes={classes.map((c) => ({
             id: Number(c.id),
             group_id: Number(c.group_id),
-            name: c.name,
+            name: c.groups_group.academic_period
+              ? `${c.name} (${c.groups_group.name} • ${c.groups_group.academic_period})`
+              : `${c.name} (${c.groups_group.name})`,
           }))}
-          selectedGroup={groupId}
           selectedClass={classId}
         />
       </div>
@@ -97,6 +113,7 @@ export default async function CourseReportPage({
         generatedAt={generatedAt}
         projectId={Number(project.id)}
         selectedGroup={groupId}
+        selectedGroups={selectedGroupIds}
         selectedClass={classId}
         hasFilterApplied={hasFilterApplied}
       />

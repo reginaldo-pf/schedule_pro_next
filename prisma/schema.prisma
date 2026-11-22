@@ -244,15 +244,21 @@ model groups_group {
   academic_period     String                @default("") @db.VarChar(30)
   start_date          DateTime?             @db.Date
   end_date            DateTime?             @db.Date
+  status              String                @default("PUBLISHED") @db.VarChar(20)
+  copied_from_id      BigInt?
+  published_at        DateTime?             @db.Timestamptz(6)
   created_at          DateTime              @db.Timestamptz(6)
   updated_at          DateTime              @db.Timestamptz(6)
   project_id          BigInt
   owner_id            BigInt?
   classes_schoolclass classes_schoolclass[]
+  groups_group        groups_group?         @relation("groups_groupTogroups_group", fields: [copied_from_id], references: [id], onUpdate: NoAction, map: "groups_group_copied_from_id_fk")
+  other_groups_group  groups_group[]        @relation("groups_groupTogroups_group")
   accounts_user       accounts_user?        @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "groups_group_owner_id_65c81251_fk_accounts_user_id")
   schedules_project   schedules_project     @relation(fields: [project_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "groups_group_project_id_52259abb_fk_schedules_project_id")
   subjects_subject    subjects_subject[]
 
+  @@index([copied_from_id], map: "groups_group_copied_from_id_idx")
   @@index([owner_id], map: "groups_group_owner_id_65c81251")
   @@index([project_id], map: "groups_group_project_id_52259abb")
 }

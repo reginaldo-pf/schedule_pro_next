@@ -113,7 +113,11 @@ export class ScheduleAuditService {
     const days = this.getProjectDays(project);
     const periods = await this.getClassPeriods(projectId);
     const lessons = await prisma.lessons_lesson.findMany({
-      where: { project_id: projectId, active: true },
+      where: {
+        project_id: projectId,
+        active: true,
+        subjects_subject: { groups_group: { status: { not: "INACTIVE" } } },
+      },
       include: {
         subjects_subject: true,
         rooms_room: true,
@@ -262,6 +266,11 @@ export class ScheduleValidationService {
         orderBy: [{ finished_at: "desc" }, { started_at: "desc" }],
         include: {
           solver_generatedscheduleentry: {
+            where: {
+              classes_schoolclass: {
+                groups_group: { status: { not: "INACTIVE" } },
+              },
+            },
             include: {
               lessons_lesson: {
                 include: {
@@ -473,7 +482,11 @@ export class ScheduleSolver {
     }
 
     const lessons = await prisma.lessons_lesson.findMany({
-      where: { project_id: projectId, active: true },
+      where: {
+        project_id: projectId,
+        active: true,
+        subjects_subject: { groups_group: { status: { not: "INACTIVE" } } },
+      },
       include: {
         subjects_subject: true,
         lessons_lesson_classes: {

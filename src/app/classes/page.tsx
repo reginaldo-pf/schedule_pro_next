@@ -2,6 +2,7 @@ import { requireShellContext } from "@/lib/shell-context";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/AppShell";
 import { ClassesClient } from "@/components/crud/ClassesClient";
+import { formatGroupSelectLabel } from "@/lib/schedule/group-helpers";
 
 export default async function ClassesPage() {
   const {
@@ -38,6 +39,8 @@ export default async function ClassesPage() {
     level: c.level,
     group_id: Number(c.group_id),
     group_name: c.groups_group.name,
+    group_period: c.groups_group.academic_period || "",
+    group_status: c.groups_group.status || "PUBLISHED",
     room_id: c.room_id ? Number(c.room_id) : null,
     room_name: c.rooms_room?.name || "",
     shifts: c.shifts || [],
@@ -60,7 +63,8 @@ export default async function ClassesPage() {
         classes={serializedClasses}
         groups={groups.map((g) => ({
           id: Number(g.id),
-          name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          name: formatGroupSelectLabel(g),
+          status: g.status || "PUBLISHED",
         }))}
         rooms={rooms.map((r) => ({ id: Number(r.id), name: r.name }))}
       />

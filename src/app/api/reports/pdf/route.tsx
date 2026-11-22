@@ -9,6 +9,7 @@ import {
   buildTeacherReportPages,
   getActiveProjectDaysList,
 } from "@/lib/schedule/report-builder";
+import { resolveGroupIdsParam } from "@/lib/schedule/group-helpers";
 import {
   makeDocumentSerial,
   makeReportVerifyToken,
@@ -55,7 +56,10 @@ export async function GET(req: NextRequest) {
     const orientation: "portrait" | "landscape" =
       orientationParam === "landscape" ? "landscape" : "portrait";
 
-    const groupId = sp.get("group") ? Number(sp.get("group")) : null;
+    const rawGroup = sp.get("group");
+    const rawGroups = sp.get("groups");
+    const groupId = rawGroup && Number(rawGroup) ? Number(rawGroup) : null;
+    const rawQuery = (sp.get("q") || "").trim();
     const classId = sp.get("class") ? Number(sp.get("class")) : null;
     const teacherId = sp.get("teacher") ? Number(sp.get("teacher")) : null;
     const roomId = sp.get("room") ? Number(sp.get("room")) : null;
@@ -100,11 +104,23 @@ export async function GET(req: NextRequest) {
     const days = getActiveProjectDaysList(project);
     const projectNumId = Number(project.id);
 
+    const activeProjectGroups = await prisma.groups_group.findMany({
+      where: { project_id: project.id, status: { not: "INACTIVE" } },
+      orderBy: [{ name: "asc" }, { academic_period: "desc" }],
+    });
+    const matchingGroupIds = resolveGroupIdsParam(
+      activeProjectGroups,
+      rawGroups,
+      rawGroup
+    );
+    const hasCourseOrPeriodFilter = matchingGroupIds.length > 0;
+
     // 1. HORÁRIOS POR CURSO E TURMA
     if (type === "course") {
       const { pages, generatedAt } = await buildCourseReportPages({
         projectId: project.id,
         groupId,
+        groupIds: hasCourseOrPeriodFilter ? matchingGroupIds : null,
         classId,
       });
 
@@ -162,6 +178,7 @@ export async function GET(req: NextRequest) {
         projectId: project.id,
         teacherId,
         groupId,
+        groupIds: hasCourseOrPeriodFilter ? matchingGroupIds : null,
       });
 
       const pdfPages: TeacherReportPdfPage[] = await Promise.all(
@@ -214,54 +231,81 @@ export async function GET(req: NextRequest) {
 
     // 3. MATRIZ DE AULAS E CARGA HORÁRIA DOCENTE
     if (type === "lessons") {
-      const [groups, classes, teachersList, rooms, lessons] = await Promise.all(
-        [
-          prisma.groups_group.findMany({ where: { project_id: project.id } }),
-          prisma.classes_schoolclass.findMany({
-            where: { project_id: project.id },
-          }),
-          prisma.teachers_teacher.findMany({
-            where: { project_id: project.id, active: true },
-            orderBy: { name: "asc" },
-          }),
-          prisma.rooms_room.findMany({ where: { project_id: project.id } }),
-          prisma.lessons_lesson.findMany({
-            where: {
-              project_id: project.id,
-              active: true,
-              ...(groupId
-                ? { subjects_subject: { group_id: BigInt(groupId) } }
-                : {}),
-              ...(classId
-                ? {
-                    lessons_lesson_classes: {
-                      some: { schoolclass_id: BigInt(classId) },
-                    },
-                  }
-                : {}),
-              ...(teacherId
-                ? {
-                    lessons_lesson_teachers: {
-                      some: { teacher_id: BigInt(teacherId) },
-                    },
-                  }
-                : {}),
-              ...(roomId ? { room_id: BigInt(roomId) } : {}),
-            },
-            include: {
-              subjects_subject: { include: { rooms_room: true } },
-              rooms_room: true,
-              lessons_lesson_classes: {
-                include: { classes_schoolclass: true },
+      const [classes, teachersList, rooms, lessons] = await Promise.all([
+        prisma.classes_schoolclass.findMany({
+          where: { project_id: project.id },
+        }),
+        prisma.teachers_teacher.findMany({
+          where: { project_id: project.id, active: true },
+          orderBy: { name: "asc" },
+        }),
+        prisma.rooms_room.findMany({ where: { project_id: project.id } }),
+        !hasCourseOrPeriodFilter || matchingGroupIds.length > 0
+          ? prisma.lessons_lesson.findMany({
+              where: {
+                project_id: project.id,
+                active: true,
+                subjects_subject: {
+                  ...(hasCourseOrPeriodFilter
+                    ? { group_id: { in: matchingGroupIds } }
+                    : { groups_group: { status: { not: "INACTIVE" } } }),
+                },
+                ...(classId
+                  ? {
+                      lessons_lesson_classes: {
+                        some: { schoolclass_id: BigInt(classId) },
+                      },
+                    }
+                  : {}),
+                ...(teacherId
+                  ? {
+                      lessons_lesson_teachers: {
+                        some: { teacher_id: BigInt(teacherId) },
+                      },
+                    }
+                  : {}),
+                ...(roomId ? { room_id: BigInt(roomId) } : {}),
+                ...(rawQuery
+                  ? {
+                      OR: [
+                        {
+                          subjects_subject: {
+                            name: { contains: rawQuery, mode: "insensitive" },
+                          },
+                        },
+                        {
+                          lessons_lesson_teachers: {
+                            some: {
+                              teachers_teacher: {
+                                name: {
+                                  contains: rawQuery,
+                                  mode: "insensitive",
+                                },
+                              },
+                            },
+                          },
+                        },
+                      ],
+                    }
+                  : {}),
               },
-              lessons_lesson_teachers: {
-                include: { teachers_teacher: true },
+              include: {
+                subjects_subject: {
+                  include: { rooms_room: true, groups_group: true },
+                },
+                rooms_room: true,
+                lessons_lesson_classes: {
+                  include: { classes_schoolclass: true },
+                },
+                lessons_lesson_teachers: {
+                  include: { teachers_teacher: true },
+                },
               },
-            },
-            orderBy: { subjects_subject: { name: "asc" } },
-          }),
-        ]
-      );
+              orderBy: { subjects_subject: { name: "asc" } },
+            })
+          : Promise.resolve([]),
+      ]);
+      const groups = activeProjectGroups;
 
       const groupMap = new Map<number, TeacherWorkloadGroup>();
 
@@ -289,8 +333,12 @@ export async function GET(req: NextRequest) {
             totalLessons: 0,
             rows: [],
           };
+          const groupPeriod = lesson.subjects_subject.groups_group?.academic_period;
+          const subjectDisplay = groupPeriod
+            ? `${lesson.subjects_subject.name} (${lesson.subjects_subject.groups_group.name} • ${groupPeriod})`
+            : `${lesson.subjects_subject.name} (${lesson.subjects_subject.groups_group.name})`;
           existing.rows.push({
-            subject: lesson.subjects_subject.name,
+            subject: subjectDisplay,
             classes: classNames || "-",
             room: roomName,
             number_of_lessons: lesson.number_of_lessons,
@@ -313,9 +361,15 @@ export async function GET(req: NextRequest) {
       });
 
       const activeFilterLabels: string[] = [];
-      if (groupId) {
-        const g = groups.find((x) => Number(x.id) === groupId);
-        if (g) activeFilterLabels.push(`Curso: ${g.name}`);
+      if (matchingGroupIds.length > 0) {
+        const selectedNames = activeProjectGroups
+          .filter((g) => matchingGroupIds.some((id) => id === g.id))
+          .map((g) =>
+            g.academic_period ? `${g.name} (${g.academic_period})` : g.name
+          );
+        if (selectedNames.length > 0) {
+          activeFilterLabels.push(`Cursos: ${selectedNames.join(", ")}`);
+        }
       }
       if (classId) {
         const c = classes.find((x) => Number(x.id) === classId);

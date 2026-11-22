@@ -7,6 +7,10 @@ import { useUI } from "@/components/ui/UIProvider";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
 import { CrudModal, type SaveActionType } from "@/components/crud/CrudModal";
 import { TablePagination, usePagination } from "@/components/crud/TablePagination";
+import {
+  GROUP_STATUS_META,
+  normalizeGroupStatus,
+} from "@/lib/schedule/group-helpers";
 
 interface LessonItem {
   id: number;
@@ -15,6 +19,8 @@ interface LessonItem {
   subject_color: string;
   group_id: number;
   group_name: string;
+  group_period: string;
+  group_status: string;
   room_id: number | null;
   room_name: string;
   class_ids: number[];
@@ -443,7 +449,27 @@ export function LessonsClient({
                         />
                         <div>
                           <div className="fw-bold">{l.subject_name}</div>
-                          <small className="text-muted">{l.group_name}</small>
+                          <div className="d-flex align-items-center gap-1 flex-wrap mt-1">
+                            <small className="text-muted">{l.group_name}</small>
+                            {l.group_period && (
+                              <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                                {l.group_period}
+                              </span>
+                            )}
+                            {normalizeGroupStatus(l.group_status) !== "PUBLISHED" && (
+                              <span
+                                className={`badge ${
+                                  GROUP_STATUS_META[normalizeGroupStatus(l.group_status)]
+                                    .badgeClass
+                                }`}
+                              >
+                                {
+                                  GROUP_STATUS_META[normalizeGroupStatus(l.group_status)]
+                                    .label
+                                }
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
