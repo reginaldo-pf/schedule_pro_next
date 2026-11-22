@@ -5,6 +5,7 @@ import {
   generateUserConfirmationToken,
   verifyUserConfirmationToken,
   hashDjangoPassword,
+  resolveSiteUrl,
 } from "@/lib/auth";
 import { sendUserConfirmationEmail } from "@/lib/email";
 
@@ -38,11 +39,7 @@ export async function POST(request: Request) {
         Number(targetUser.id),
         targetUser.email
       );
-      const origin = new URL(request.url).origin;
-      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(
-        /\/$/,
-        ""
-      );
+      const siteUrl = resolveSiteUrl(request);
       const confirmUrl = `${siteUrl}/accounts/confirm/${token}`;
 
       const emailRes = await sendUserConfirmationEmail({

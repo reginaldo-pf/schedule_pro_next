@@ -5,6 +5,7 @@ import {
   getActiveProject,
   hashDjangoPassword,
   generateUserConfirmationToken,
+  resolveSiteUrl,
 } from "@/lib/auth";
 import { PlanService } from "@/lib/services/access-control";
 import { sendUserConfirmationEmail } from "@/lib/email";
@@ -140,8 +141,7 @@ export async function POST(
           Number(createdUser.id),
           createdUser.email
         );
-        const origin = new URL(request.url).origin;
-        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(/\/$/, "");
+        const siteUrl = resolveSiteUrl(request);
         confirmUrl = `${siteUrl}/accounts/confirm/${token}`;
 
         const emailRes = await sendUserConfirmationEmail({
@@ -608,8 +608,7 @@ export async function PUT(
           Number(updatedUser.id),
           updatedUser.email
         );
-        const origin = new URL(request.url).origin;
-        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(/\/$/, "");
+        const siteUrl = resolveSiteUrl(request);
         confirmUrl = `${siteUrl}/accounts/confirm/${token}`;
 
         const emailRes = await sendUserConfirmationEmail({

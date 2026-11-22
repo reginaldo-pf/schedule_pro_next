@@ -305,4 +305,50 @@ export async function verifyPublicAvailabilityRequestToken(
   }
 }
 
+const LOCALHOST_URL_RE = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i;
+const LOCALHOST_HOST_RE = /^(localhost|127\.0\.0\.1)(:\d+)?$/i;
+
+/**
+ * Resolves the public base URL for links sent in e-mails.
+ * Uses request headers (x-forwarded-host/host) when NEXT_PUBLIC_SITE_URL is missing
+ * or accidentally left pointing to localhost in production.
+ */
+export function resolveSiteUrl(request: Request): string {
+  const envUrl = (process.env.NEXT_PUBLIC_SITE_URL || "").trim().replace(/\/$/, "");
+  const isEnvLocal = !envUrl || LOCALHOST_URL_RE.test(envUrl);
+
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+  const host = forwardedHost || request.headers.get("host")?.split(",")[0]?.trim();
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+
+  let requestOrigin = "";
+  if (host) {
+    const proto = forwardedProto || (LOCALHOST_HOST_RE.test(host) ? "http" : "https");
+    requestOrigin = `${proto}://${host}`;
+  } else {
+    try {
+      requestOrigin = new URL(request.url).origin;
+    } catch {
+      requestOrigin = "";
+    }
+  }
+
+  if (!isEnvLocal) {
+    return envUrl;
+  }
+
+  if (requestOrigin && !LOCALHOST_URL_RE.test(requestOrigin)) {
+    return requestOrigin.replace(/\/$/, "");
+  }
+
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`.replace(/\/$/, "");
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`.replace(/\/$/, "");
+  }
+
+  return (requestOrigin || envUrl || "http://localhost:3000").replace(/\/$/, "");
+}
+
 

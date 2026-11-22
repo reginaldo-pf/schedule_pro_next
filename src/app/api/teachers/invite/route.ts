@@ -4,6 +4,7 @@ import {
   getCurrentUser,
   getActiveProject,
   generatePortalToken,
+  resolveSiteUrl,
 } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 
@@ -37,11 +38,7 @@ export async function POST(request: Request) {
     Number(project.id),
     issuedAt
   );
-  const origin = new URL(request.url).origin;
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(
-    /\/$/,
-    ""
-  );
+  const siteUrl = resolveSiteUrl(request);
   const portalUrl = `${siteUrl}/teachers/portal/${token}`;
 
   await prisma.teachers_teacher.update({

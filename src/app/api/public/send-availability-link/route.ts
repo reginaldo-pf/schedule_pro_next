@@ -4,6 +4,7 @@ import {
   generatePortalToken,
   PUBLIC_PORTAL_TOKEN_TTL_SECONDS,
   verifyPublicAvailabilityRequestToken,
+  resolveSiteUrl,
 } from "@/lib/auth";
 import { sendEmail } from "@/lib/email";
 
@@ -51,11 +52,7 @@ export async function POST(request: Request) {
     PUBLIC_PORTAL_TOKEN_TTL_SECONDS
   );
 
-  const origin = new URL(request.url).origin;
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(
-    /\/$/,
-    ""
-  );
+  const siteUrl = resolveSiteUrl(request);
   const portalUrl = `${siteUrl}/teachers/portal/${token}`;
 
   const subject = `[Schedule Pro] Alteração de Disponibilidade de Horário - ${teacher.name}`;
