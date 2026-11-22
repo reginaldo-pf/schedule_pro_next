@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
@@ -59,6 +59,8 @@ export function LessonsClient({
   subjects,
   teachers,
   rooms,
+  selectedGroup = "",
+  initialQuery = "",
 }: {
   projectName: string;
   lessons: LessonItem[];
@@ -67,28 +69,74 @@ export function LessonsClient({
   subjects: { id: number; group_id: number; room_id: number | null; name: string }[];
   teachers: { id: number; name: string }[];
   rooms: { id: number; name: string }[];
+  selectedGroup?: string;
+  initialQuery?: string;
 }) {
   const router = useRouter();
   const { startLoading, stopLoading, showToast, confirmAction } = useUI();
 
-  const [filterGroup, setFilterGroup] = useState(
-    groups[0] ? String(groups[0].id) : ""
-  );
+  const [filterGroup, setFilterGroup] = useState(selectedGroup || "");
   const [filterClass, setFilterClass] = useState("");
   const [filterTeacher, setFilterTeacher] = useState("");
   const [filterRoom, setFilterRoom] = useState("");
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery || "");
 
-  const [modalOpen, setModalOpen] = useState(false);
+  useEffect(() => {
+    setFilterGroup(selectedGroup || "");
+    stopLoading();
+  }, [selectedGroup, initialQuery, stopLoading]);
+
+  useEffect(() => {
+    if (filterGroup) return;
+    const trimmed = query.trim();
+    if (trimmed === initialQuery) return;
+    const timer = setTimeout(() => {
+      startLoading();
+      router.replace(
+        trimmed ? `/lessons?q=${encodeURIComponent(trimmed)}` : "/lessons"
+      );
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [query, filterGroup, initialQuery, router, startLoading]);
+
+  const handleGroupFilterChange = (nextGroup: string) => {
+    setFilterGroup(nextGroup);
+    setFilterClass("");
+    setFilterTeacher("");
+    setFilterRoom("");
+    startLoading();
+    const params = new URLSearchParams();
+    if (nextGroup) params.set("group", nextGroup);
+    if (query.trim()) params.set("q", query.trim());
+    const qs = params.toString();
+    router.push(qs ? `/lessons?${qs}` : "/lessons");
+  };
+
+  const modalOpenInit = useState(false);
+  const [modalOpen, setModalOpen] = modalOpenInit;
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [form, setForm] = useState(emptyLessonForm);
 
+  const isAllCourses = filterGroup === "ALL";
+  const hasCourseSelection = Boolean(filterGroup);
+
   const availableClassesForFilter = classes.filter(
-    (c) => !filterGroup || String(c.group_id) === filterGroup
+    (c) => !filterGroup || isAllCourses || String(c.group_id) === filterGroup
   );
 
+  const courseTeacherIds = new Set<number>();
+  for (const l of lessons) {
+    for (const tid of l.teacher_ids) {
+      courseTeacherIds.add(tid);
+    }
+  }
+  const availableTeachersForFilter = hasCourseSelection
+    ? teachers.filter((t) => courseTeacherIds.has(t.id))
+    : teachers;
+
   const filtered = lessons.filter((l) => {
-    if (filterGroup && String(l.group_id) !== filterGroup) return false;
+    if (filterGroup && !isAllCourses && String(l.group_id) !== filterGroup)
+      return false;
     if (filterClass && !l.class_ids.includes(Number(filterClass))) return false;
     if (filterTeacher && !l.teacher_ids.includes(Number(filterTeacher)))
       return false;
@@ -118,7 +166,7 @@ export function LessonsClient({
 
   const openCreate = () => {
     setCurrentIndex(null);
-    const defaultGroup = filterGroup || (groups[0] ? String(groups[0].id) : "");
+    const defaultGroup = filterGroup && !isAllCourses ? filterGroup : "";
     const defaultClassIds = filterClass ? [Number(filterClass)] : [];
     setForm({
       ...emptyLessonForm,
@@ -237,7 +285,7 @@ export function LessonsClient({
   };
 
   const reportParams = new URLSearchParams();
-  if (filterGroup) reportParams.set("group", filterGroup);
+  if (filterGroup && !isAllCourses) reportParams.set("group", filterGroup);
   if (filterClass) reportParams.set("class", filterClass);
   if (filterTeacher) reportParams.set("teacher", filterTeacher);
   if (filterRoom) reportParams.set("room", filterRoom);
@@ -272,10 +320,7 @@ export function LessonsClient({
               <select
                 className="form-select form-select-sm"
                 value={filterGroup}
-                onChange={(e) => {
-                  setFilterGroup(e.target.value);
-                  setFilterClass("");
-                }}
+                onChange={(e) => handleGroupFilterChange(e.target.value)}
               >
                 <option value="">Selecione o Curso / Grupo...</option>
                 {groups.map((g) => (
@@ -283,17 +328,18 @@ export function LessonsClient({
                     {g.name}
                   </option>
                 ))}
+                <option value="ALL">Todos os Cursos</option>
               </select>
             </div>
             <div className="col-md-2">
               <select
                 className="form-select form-select-sm"
                 value={filterClass}
-                disabled={!filterGroup}
+                disabled={!hasCourseSelection}
                 onChange={(e) => setFilterClass(e.target.value)}
               >
                 <option value="">
-                  {filterGroup
+                  {hasCourseSelection
                     ? "Selecione a Turma..."
                     : "Selecione um curso primeiro..."}
                 </option>
@@ -308,10 +354,15 @@ export function LessonsClient({
               <select
                 className="form-select form-select-sm"
                 value={filterTeacher}
+                disabled={!hasCourseSelection}
                 onChange={(e) => setFilterTeacher(e.target.value)}
               >
-                <option value="">Selecione o Professor...</option>
-                {teachers.map((t) => (
+                <option value="">
+                  {hasCourseSelection
+                    ? "Selecione o Professor..."
+                    : "Selecione um curso primeiro..."}
+                </option>
+                {availableTeachersForFilter.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
@@ -322,9 +373,14 @@ export function LessonsClient({
               <select
                 className="form-select form-select-sm"
                 value={filterRoom}
+                disabled={!hasCourseSelection}
                 onChange={(e) => setFilterRoom(e.target.value)}
               >
-                <option value="">Selecione a Sala...</option>
+                <option value="">
+                  {hasCourseSelection
+                    ? "Selecione a Sala..."
+                    : "Selecione um curso primeiro..."}
+                </option>
                 {rooms.map((r) => (
                   <option key={r.id} value={r.id}>
                     {r.name}
@@ -336,7 +392,8 @@ export function LessonsClient({
               <input
                 type="text"
                 className="form-control form-control-sm"
-                placeholder="Buscar..."
+                placeholder="Buscar aula ou professor..."
+                title="Digite o nome da aula/disciplina ou do professor"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
               />
@@ -358,7 +415,14 @@ export function LessonsClient({
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {!hasCourseSelection && !query.trim() ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-5 text-muted">
+                    <i className="bi bi-funnel me-2" />
+                    Selecione um curso acima (ou digite na busca por aula/professor) para visualizar as aulas.
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-4 text-muted">
                     Nenhuma aula encontrada para os filtros selecionados.

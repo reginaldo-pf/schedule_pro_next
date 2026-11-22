@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/layout/AppShell";
 import { LessonsClient } from "@/components/crud/LessonsClient";
 
-export default async function LessonsPage() {
+export default async function LessonsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}) {
   const {
     activeProject,
     shellUser,
@@ -12,24 +16,62 @@ export default async function LessonsPage() {
     shellSubscription,
   } = await requireShellContext({ requireProject: true });
 
+  const sp = await searchParams;
+  const rawGroup = (sp.group || "").trim();
+  const rawQuery = (sp.q || "").trim();
+  const selectedGroupValue =
+    rawGroup === "ALL" ? "ALL" : rawGroup && Number(rawGroup) ? rawGroup : "";
+  const selectedGroupId =
+    selectedGroupValue && selectedGroupValue !== "ALL"
+      ? Number(selectedGroupValue)
+      : null;
+  const shouldLoadLessons = Boolean(selectedGroupValue || rawQuery);
+
   const [lessons, groups, classes, subjects, teachers, rooms] =
     await Promise.all([
-      prisma.lessons_lesson.findMany({
-        where: { project_id: activeProject!.id },
-        include: {
-          subjects_subject: {
-            include: { groups_group: true, rooms_room: true },
-          },
-          rooms_room: true,
-          lessons_lesson_classes: {
-            include: { classes_schoolclass: true },
-          },
-          lessons_lesson_teachers: {
-            include: { teachers_teacher: true },
-          },
-        },
-        orderBy: [{ subjects_subject: { name: "asc" } }, { id: "asc" }],
-      }),
+      shouldLoadLessons
+        ? prisma.lessons_lesson.findMany({
+            where: {
+              project_id: activeProject!.id,
+              ...(selectedGroupId
+                ? { subjects_subject: { group_id: BigInt(selectedGroupId) } }
+                : {}),
+              ...(rawQuery
+                ? {
+                    OR: [
+                      {
+                        subjects_subject: {
+                          name: { contains: rawQuery, mode: "insensitive" },
+                        },
+                      },
+                      {
+                        lessons_lesson_teachers: {
+                          some: {
+                            teachers_teacher: {
+                              name: { contains: rawQuery, mode: "insensitive" },
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  }
+                : {}),
+            },
+            include: {
+              subjects_subject: {
+                include: { groups_group: true, rooms_room: true },
+              },
+              rooms_room: true,
+              lessons_lesson_classes: {
+                include: { classes_schoolclass: true },
+              },
+              lessons_lesson_teachers: {
+                include: { teachers_teacher: true },
+              },
+            },
+            orderBy: [{ subjects_subject: { name: "asc" } }, { id: "asc" }],
+          })
+        : Promise.resolve([]),
       prisma.groups_group.findMany({
         where: { project_id: activeProject!.id },
         orderBy: { name: "asc" },
@@ -106,6 +148,8 @@ export default async function LessonsPage() {
         }))}
         teachers={teachers.map((t) => ({ id: Number(t.id), name: t.name }))}
         rooms={rooms.map((r) => ({ id: Number(r.id), name: r.name }))}
+        selectedGroup={selectedGroupValue}
+        initialQuery={rawQuery}
       />
     </AppShell>
   );
