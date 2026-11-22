@@ -33,6 +33,7 @@ export function PublicHomeClient({
       teacher: { id: number; name: string; email: string };
       project: PublicProject;
       hasSchedule: boolean;
+      portalToken?: string;
     }[]
   >([]);
 
@@ -240,7 +241,7 @@ export function PublicHomeClient({
                   <div>
                     <h5 className="fw-bold mb-1">Horário do Professor</h5>
                     <p className="text-muted small mb-0">
-                      Consulte sua grade informando seu e-mail cadastrado
+                      Consulte sua grade ou altere sua disponibilidade informando seu e-mail cadastrado
                     </p>
                   </div>
                 </div>
@@ -282,7 +283,7 @@ export function PublicHomeClient({
                         {teacherResults.map((item) => (
                           <div
                             key={`${item.project.id}_${item.teacher.id}`}
-                            className="p-3 rounded-3 border bg-light d-flex justify-content-between align-items-center"
+                            className="p-3 rounded-3 border bg-light d-flex flex-wrap justify-content-between align-items-center gap-2"
                           >
                             <div>
                               <div className="fw-bold text-dark">
@@ -294,19 +295,31 @@ export function PublicHomeClient({
                                 {item.project.academic_period})
                               </div>
                             </div>
-                            {item.hasSchedule ? (
-                              <Link
-                                href={`/schedule/teacher/${item.teacher.id}`}
-                                className="btn btn-sm btn-success fw-bold px-3"
-                              >
-                                <i className="bi bi-eye me-1" />
-                                Ver Horário
-                              </Link>
-                            ) : (
-                              <span className="badge bg-secondary-subtle text-secondary">
-                                Sem horário publicado
-                              </span>
-                            )}
+                            <div className="d-flex align-items-center gap-2 flex-wrap">
+                              {item.hasSchedule ? (
+                                <Link
+                                  href={`/schedule/teacher/${item.teacher.id}`}
+                                  className="btn btn-sm btn-success fw-bold px-3"
+                                >
+                                  <i className="bi bi-eye me-1" />
+                                  Ver Horário
+                                </Link>
+                              ) : (
+                                <span className="badge bg-secondary-subtle text-secondary">
+                                  Sem horário publicado
+                                </span>
+                              )}
+                              {item.portalToken && (
+                                <Link
+                                  href={`/teachers/portal/${item.portalToken}`}
+                                  className="btn btn-sm btn-outline-primary fw-semibold px-3"
+                                  title="Link válido por 10 minutos"
+                                >
+                                  <i className="bi bi-calendar-check me-1" />
+                                  Alterar Disponibilidade
+                                </Link>
+                              )}
+                            </div>
                           </div>
                         ))}
                       </div>

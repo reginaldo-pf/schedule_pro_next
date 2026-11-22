@@ -180,6 +180,7 @@ export async function getActiveProject(user?: Awaited<ReturnType<typeof getCurre
 }
 
 export const PORTAL_TOKEN_TTL_SECONDS = 48 * 60 * 60;
+export const PUBLIC_PORTAL_TOKEN_TTL_SECONDS = 10 * 60;
 
 export function isPortalTokenActive(
   lastInvitedAt: Date | null | undefined,
@@ -190,13 +191,14 @@ export function isPortalTokenActive(
 }
 
 /**
- * Generates a signed 48-hour Teacher Portal token.
+ * Generates a signed Teacher Portal token (48 hours by default).
  * When `issuedAtDate` is provided, `iat` and `exp` are derived deterministically from it.
  */
 export async function generatePortalToken(
   teacherId: number,
   projectId: number,
-  issuedAtDate?: Date
+  issuedAtDate?: Date,
+  ttlSeconds = PORTAL_TOKEN_TTL_SECONDS
 ): Promise<string> {
   const iatSeconds = Math.floor(
     (issuedAtDate ? issuedAtDate.getTime() : Date.now()) / 1000
@@ -204,7 +206,7 @@ export async function generatePortalToken(
   return await new SignJWT({ teacherId, projectId, purpose: "teacher_portal" })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt(iatSeconds)
-    .setExpirationTime(iatSeconds + PORTAL_TOKEN_TTL_SECONDS)
+    .setExpirationTime(iatSeconds + ttlSeconds)
     .sign(SECRET_KEY);
 }
 

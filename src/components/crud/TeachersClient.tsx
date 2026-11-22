@@ -406,36 +406,37 @@ export function TeachersClient({
                           className="btn btn-outline-secondary"
                           onClick={() => setAvailTeacher(t)}
                           title="Grade de Disponibilidade"
+                          aria-label="Grade de Disponibilidade"
                         >
-                          <i className="bi bi-calendar-check me-1" />
-                          Disponibilidade
+                          <i className="bi bi-calendar-check" />
                         </button>
                         {activeToken ? (
                           <button
                             type="button"
                             className="btn btn-success"
                             onClick={() => handleCopyPortalLink(t, activeToken)}
-                            title="Copiar link ativo do Portal do Professor (48h)"
+                            title="Copiar Link do Portal do Professor (48h)"
+                            aria-label="Copiar Link do Portal do Professor (48h)"
                           >
-                            <i className="bi bi-clipboard-check me-1" />
-                            Copiar Link
+                            <i className="bi bi-clipboard-check" />
                           </button>
                         ) : (
                           <button
                             type="button"
                             className="btn btn-outline-success"
                             onClick={() => handleGeneratePortalLink(t)}
-                            title="Gerar link de alteração de disponibilidade (48h)"
+                            title="Gerar Link de Alteração de Disponibilidade (48h)"
+                            aria-label="Gerar Link de Alteração de Disponibilidade (48h)"
                           >
-                            <i className="bi bi-link-45deg me-1" />
-                            Gerar Link
+                            <i className="bi bi-link-45deg" />
                           </button>
                         )}
                         <button
                           type="button"
                           className="btn btn-outline-info"
                           onClick={() => handleSendPortalInvite(t)}
-                          title="Enviar link do Portal do Professor por e-mail (48h)"
+                          title="Enviar Link do Portal do Professor por E-mail (48h)"
+                          aria-label="Enviar Link do Portal do Professor por E-mail (48h)"
                         >
                           <i className="bi bi-send" />
                         </button>
@@ -443,9 +444,10 @@ export function TeachersClient({
                           type="button"
                           className="btn btn-outline-primary"
                           onClick={() => openEdit(startIndex + idx)}
+                          title="Editar Professor"
+                          aria-label="Editar Professor"
                         >
-                          <i className="bi bi-pencil-square me-1" />
-                          Editar
+                          <i className="bi bi-pencil-square" />
                         </button>
                       </div>
                     </td>

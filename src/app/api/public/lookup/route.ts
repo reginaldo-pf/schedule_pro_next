@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  generatePortalToken,
+  PUBLIC_PORTAL_TOKEN_TTL_SECONDS,
+} from "@/lib/auth";
 import { ACTIVE_RUN_STATUSES } from "@/lib/schedule/collision-engine";
 
 export async function GET(request: Request) {
@@ -81,6 +85,13 @@ export async function POST(request: Request) {
       hasSchedule = count > 0;
     }
 
+    const portalToken = await generatePortalToken(
+      Number(t.id),
+      Number(t.schedules_project.id),
+      undefined,
+      PUBLIC_PORTAL_TOKEN_TTL_SECONDS
+    );
+
     results.push({
       teacher: {
         id: Number(t.id),
@@ -94,6 +105,7 @@ export async function POST(request: Request) {
         academic_period: t.schedules_project.academic_period,
       },
       hasSchedule,
+      portalToken,
     });
   }
 
