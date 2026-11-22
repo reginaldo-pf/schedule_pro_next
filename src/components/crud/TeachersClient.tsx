@@ -28,6 +28,7 @@ interface TeacherItem {
   weekly_load: number;
   last_invited_at: string | null;
   availability_updated_at: string | null;
+  portal_token: string | null;
 }
 
 const emptyTeacher = {
@@ -64,6 +65,7 @@ export function TeachersClient({
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
   const [form, setForm] = useState(emptyTeacher);
   const [availTeacher, setAvailTeacher] = useState<TeacherItem | null>(null);
+  const [localTokens, setLocalTokens] = useState<Record<number, string>>({});
 
   const filtered = teachers.filter(
     (t) =>
@@ -169,18 +171,95 @@ export function TeachersClient({
     }
   };
 
+  const copyToClipboard = async (text: string): Promise<boolean> => {
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // Fallback below if clipboard permission is unavailable
+      }
+    }
+    try {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+      return copied;
+    } catch {
+      return false;
+    }
+  };
+
+  const buildPortalUrl = (token: string) =>
+    `${window.location.origin}/teachers/portal/${token}`;
+
+  const handleGeneratePortalLink = async (teacher: TeacherItem) => {
+    startLoading();
+    try {
+      const res = await fetch("/api/teachers/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ teacherId: teacher.id, sendEmail: false }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        if (data.token) {
+          setLocalTokens((prev) => ({ ...prev, [teacher.id]: data.token }));
+        }
+        const urlToCopy =
+          data.portalUrl || (data.token ? buildPortalUrl(data.token) : "");
+        const copied = urlToCopy ? await copyToClipboard(urlToCopy) : false;
+        showToast(
+          copied
+            ? `Link de disponibilidade gerado para ${teacher.name} e copiado!`
+            : `Link de disponibilidade gerado para ${teacher.name}!`,
+          "success"
+        );
+        router.refresh();
+      } else {
+        showToast(data.message || "Erro ao gerar link.", "danger");
+      }
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleCopyPortalLink = async (teacher: TeacherItem, token: string) => {
+    const portalUrl = buildPortalUrl(token);
+    const copied = await copyToClipboard(portalUrl);
+    if (copied) {
+      showToast(
+        `Link de disponibilidade de ${teacher.name} copiado para a área de transferência!`,
+        "success"
+      );
+    } else {
+      showToast(
+        `Não foi possível copiar automaticamente. URL: ${portalUrl}`,
+        "warning"
+      );
+    }
+  };
+
   const handleSendPortalInvite = async (teacher: TeacherItem) => {
     startLoading();
     try {
       const res = await fetch("/api/teachers/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ teacherId: teacher.id }),
+        body: JSON.stringify({ teacherId: teacher.id, sendEmail: true }),
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        if (data.portalUrl && navigator.clipboard) {
-          await navigator.clipboard.writeText(data.portalUrl).catch(() => {});
+        if (data.token) {
+          setLocalTokens((prev) => ({ ...prev, [teacher.id]: data.token }));
+        }
+        if (data.portalUrl) {
+          await copyToClipboard(data.portalUrl);
         }
         showToast(
           `${data.message} (Link também copiado para a área de transferência)`,
@@ -245,7 +324,9 @@ export function TeachersClient({
                   </td>
                 </tr>
               ) : (
-                paginatedItems.map((t, idx) => (
+                paginatedItems.map((t, idx) => {
+                  const activeToken = localTokens[t.id] ?? t.portal_token;
+                  return (
                   <tr key={t.id}>
                     <td className="ps-4">
                       <div className="d-flex align-items-center gap-2">
@@ -329,11 +410,32 @@ export function TeachersClient({
                           <i className="bi bi-calendar-check me-1" />
                           Disponibilidade
                         </button>
+                        {activeToken ? (
+                          <button
+                            type="button"
+                            className="btn btn-success"
+                            onClick={() => handleCopyPortalLink(t, activeToken)}
+                            title="Copiar link ativo do Portal do Professor (48h)"
+                          >
+                            <i className="bi bi-clipboard-check me-1" />
+                            Copiar Link
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="btn btn-outline-success"
+                            onClick={() => handleGeneratePortalLink(t)}
+                            title="Gerar link de alteração de disponibilidade (48h)"
+                          >
+                            <i className="bi bi-link-45deg me-1" />
+                            Gerar Link
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="btn btn-outline-info"
                           onClick={() => handleSendPortalInvite(t)}
-                          title="Enviar link do Portal do Professor (48h)"
+                          title="Enviar link do Portal do Professor por e-mail (48h)"
                         >
                           <i className="bi bi-send" />
                         </button>
@@ -348,7 +450,8 @@ export function TeachersClient({
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>

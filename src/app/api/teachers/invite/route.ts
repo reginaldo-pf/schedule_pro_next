@@ -19,6 +19,7 @@ export async function POST(request: Request) {
 
   const body = await request.json();
   const teacherId = BigInt(body.teacherId);
+  const shouldSendEmail = body.sendEmail !== false;
 
   const teacher = await prisma.teachers_teacher.findFirst({
     where: { id: teacherId, project_id: project.id },
@@ -30,9 +31,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const issuedAt = new Date(Math.floor(Date.now() / 1000) * 1000);
   const token = await generatePortalToken(
     Number(teacher.id),
-    Number(project.id)
+    Number(project.id),
+    issuedAt
   );
   const origin = new URL(request.url).origin;
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || origin).replace(
@@ -41,9 +44,24 @@ export async function POST(request: Request) {
   );
   const portalUrl = `${siteUrl}/teachers/portal/${token}`;
 
+  await prisma.teachers_teacher.update({
+    where: { id: teacher.id },
+    data: { last_invited_at: issuedAt },
+  });
+
+  if (!shouldSendEmail) {
+    return NextResponse.json({
+      ok: true,
+      token,
+      portalUrl,
+      message: `Link de disponibilidade gerado para ${teacher.name}!`,
+    });
+  }
+
   if (!teacher.email) {
     return NextResponse.json({
       ok: true,
+      token,
       portalUrl,
       message: `Link do Portal gerado! (O professor ${teacher.name} não possui e-mail cadastrado, copie o link diretamente).`,
     });
@@ -129,13 +147,9 @@ export async function POST(request: Request) {
     replyTo: user.email || undefined,
   });
 
-  await prisma.teachers_teacher.update({
-    where: { id: teacher.id },
-    data: { last_invited_at: new Date() },
-  });
-
   return NextResponse.json({
     ok: true,
+    token,
     portalUrl,
     sent: emailResult.sent,
     provider: emailResult.provider,
