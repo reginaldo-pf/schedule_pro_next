@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 
@@ -13,25 +13,40 @@ export function LessonsReportFilterBar({
   selectedClass,
   selectedTeacher,
   selectedRoom,
+  initialQuery = "",
 }: {
   groups: { id: number; name: string }[];
   classes: { id: number; group_id: number; name: string }[];
   teachers: { id: number; name: string }[];
   rooms: { id: number; name: string }[];
-  selectedGroup: number | null;
+  selectedGroup: string;
   selectedClass: number | null;
   selectedTeacher: number | null;
   selectedRoom: number | null;
+  initialQuery?: string;
 }) {
   const router = useRouter();
   const { startLoading, stopLoading } = useUI();
+  const [query, setQuery] = useState(initialQuery);
 
   useEffect(() => {
+    setQuery(initialQuery);
     stopLoading();
-  }, [selectedGroup, selectedClass, selectedTeacher, selectedRoom, stopLoading]);
+  }, [
+    selectedGroup,
+    selectedClass,
+    selectedTeacher,
+    selectedRoom,
+    initialQuery,
+    stopLoading,
+  ]);
+
+  const isAllCourses = selectedGroup === "ALL";
+  const hasCourseSelection = Boolean(selectedGroup);
 
   const filteredClasses = classes.filter(
-    (c) => !selectedGroup || c.group_id === selectedGroup
+    (c) =>
+      !selectedGroup || isAllCourses || String(c.group_id) === selectedGroup
   );
 
   const updateFilter = (next: {
@@ -39,15 +54,11 @@ export function LessonsReportFilterBar({
     classId?: string;
     teacher?: string;
     room?: string;
+    q?: string;
   }) => {
     startLoading();
     const params = new URLSearchParams();
-    const g =
-      next.group !== undefined
-        ? next.group
-        : selectedGroup
-        ? String(selectedGroup)
-        : "";
+    const g = next.group !== undefined ? next.group : selectedGroup;
     const c =
       next.classId !== undefined
         ? next.classId
@@ -66,15 +77,27 @@ export function LessonsReportFilterBar({
         : selectedRoom
         ? String(selectedRoom)
         : "";
+    const q = next.q !== undefined ? next.q : query;
 
     if (g) params.set("group", g);
     if (c) params.set("class", c);
     if (t) params.set("teacher", t);
     if (r) params.set("room", r);
+    if (q.trim()) params.set("q", q.trim());
 
     const qs = params.toString();
     router.push(qs ? `/lessons/report?${qs}` : "/lessons/report");
   };
+
+  useEffect(() => {
+    const trimmed = query.trim();
+    if (trimmed === initialQuery) return;
+    const timer = setTimeout(() => {
+      updateFilter({ q: trimmed });
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   return (
     <div className="card border-0 shadow-sm mb-3 no-print">
@@ -86,9 +109,14 @@ export function LessonsReportFilterBar({
             </label>
             <select
               className="form-select form-select-sm"
-              value={selectedGroup || ""}
+              value={selectedGroup}
               onChange={(e) =>
-                updateFilter({ group: e.target.value, classId: "" })
+                updateFilter({
+                  group: e.target.value,
+                  classId: "",
+                  teacher: "",
+                  room: "",
+                })
               }
             >
               <option value="">Selecione o Curso / Grupo...</option>
@@ -97,19 +125,20 @@ export function LessonsReportFilterBar({
                   {g.name}
                 </option>
               ))}
+              <option value="ALL">Todos os Cursos</option>
             </select>
           </div>
 
-          <div className="col-12 col-md-3">
+          <div className="col-12 col-md-2">
             <label className="form-label small fw-semibold mb-1">Turma</label>
             <select
               className="form-select form-select-sm"
               value={selectedClass || ""}
-              disabled={!selectedGroup}
+              disabled={!hasCourseSelection}
               onChange={(e) => updateFilter({ classId: e.target.value })}
             >
               <option value="">
-                {selectedGroup
+                {hasCourseSelection
                   ? "Selecione a Turma..."
                   : "Selecione um curso primeiro..."}
               </option>
@@ -121,16 +150,21 @@ export function LessonsReportFilterBar({
             </select>
           </div>
 
-          <div className="col-12 col-md-3">
+          <div className="col-12 col-md-2">
             <label className="form-label small fw-semibold mb-1">
               Professor(a)
             </label>
             <select
               className="form-select form-select-sm"
               value={selectedTeacher || ""}
+              disabled={!hasCourseSelection}
               onChange={(e) => updateFilter({ teacher: e.target.value })}
             >
-              <option value="">Selecione o Professor...</option>
+              <option value="">
+                {hasCourseSelection
+                  ? "Selecione o Professor..."
+                  : "Selecione um curso primeiro..."}
+              </option>
               {teachers.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -144,9 +178,14 @@ export function LessonsReportFilterBar({
             <select
               className="form-select form-select-sm"
               value={selectedRoom || ""}
+              disabled={!hasCourseSelection}
               onChange={(e) => updateFilter({ room: e.target.value })}
             >
-              <option value="">Selecione a Sala...</option>
+              <option value="">
+                {hasCourseSelection
+                  ? "Selecione a Sala..."
+                  : "Selecione um curso primeiro..."}
+              </option>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -155,14 +194,35 @@ export function LessonsReportFilterBar({
             </select>
           </div>
 
+          <div className="col-12 col-md-2">
+            <label className="form-label small fw-semibold mb-1">
+              Pesquisa Rápida
+            </label>
+            <input
+              type="text"
+              className="form-control form-control-sm"
+              placeholder="Buscar aula ou professor..."
+              title="Digite o nome da aula/disciplina ou do professor"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+
           <div className="col-12 col-md-1 text-md-end">
             <button
               type="button"
               className="btn btn-outline-secondary btn-sm w-100"
               title="Limpar Filtros"
-              onClick={() =>
-                updateFilter({ group: "", classId: "", teacher: "", room: "" })
-              }
+              onClick={() => {
+                setQuery("");
+                updateFilter({
+                  group: "",
+                  classId: "",
+                  teacher: "",
+                  room: "",
+                  q: "",
+                });
+              }}
             >
               <i className="bi bi-x-circle" />
             </button>

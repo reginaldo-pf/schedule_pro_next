@@ -21,11 +21,21 @@ export default async function LessonsMatrixReportPage({
   const sp = await searchParams;
   const project = activeProject!;
   const projectNumId = Number(project.id);
-  const groupId = sp.group ? Number(sp.group) : null;
+  const rawGroup = (sp.group || "").trim();
+  const rawQuery = (sp.q || "").trim();
+  const selectedGroupValue =
+    rawGroup === "ALL" ? "ALL" : rawGroup && Number(rawGroup) ? rawGroup : "";
+  const groupId =
+    selectedGroupValue && selectedGroupValue !== "ALL"
+      ? Number(selectedGroupValue)
+      : null;
   const classId = sp.class ? Number(sp.class) : null;
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
   const roomId = sp.room ? Number(sp.room) : null;
-  const hasFilterApplied = Boolean(groupId || classId || teacherId || roomId);
+  const hasCourseSelection = Boolean(selectedGroupValue);
+  const hasFilterApplied = Boolean(
+    hasCourseSelection || classId || teacherId || roomId || rawQuery
+  );
 
   const [groups, classes, teachersList, rooms, lessons] = await Promise.all([
     prisma.groups_group.findMany({
@@ -36,10 +46,26 @@ export default async function LessonsMatrixReportPage({
       where: { project_id: project.id },
       orderBy: { name: "asc" },
     }),
-    prisma.teachers_teacher.findMany({
-      where: { project_id: project.id, active: true },
-      orderBy: { name: "asc" },
-    }),
+    hasCourseSelection
+      ? prisma.teachers_teacher.findMany({
+          where: {
+            project_id: project.id,
+            active: true,
+            lessons_lesson_teachers: {
+              some: {
+                lessons_lesson: {
+                  project_id: project.id,
+                  active: true,
+                  ...(groupId
+                    ? { subjects_subject: { group_id: BigInt(groupId) } }
+                    : {}),
+                },
+              },
+            },
+          },
+          orderBy: { name: "asc" },
+        })
+      : Promise.resolve([]),
     prisma.rooms_room.findMany({
       where: { project_id: project.id, active: true },
       orderBy: { name: "asc" },
@@ -67,6 +93,26 @@ export default async function LessonsMatrixReportPage({
                 }
               : {}),
             ...(roomId ? { room_id: BigInt(roomId) } : {}),
+            ...(rawQuery
+              ? {
+                  OR: [
+                    {
+                      subjects_subject: {
+                        name: { contains: rawQuery, mode: "insensitive" },
+                      },
+                    },
+                    {
+                      lessons_lesson_teachers: {
+                        some: {
+                          teachers_teacher: {
+                            name: { contains: rawQuery, mode: "insensitive" },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                }
+              : {}),
           },
           include: {
             subjects_subject: { include: { rooms_room: true } },
@@ -179,10 +225,11 @@ export default async function LessonsMatrixReportPage({
             name: t.name,
           }))}
           rooms={rooms.map((r) => ({ id: Number(r.id), name: r.name }))}
-          selectedGroup={groupId}
+          selectedGroup={selectedGroupValue}
           selectedClass={classId}
           selectedTeacher={teacherId}
           selectedRoom={roomId}
+          initialQuery={rawQuery}
         />
 
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
