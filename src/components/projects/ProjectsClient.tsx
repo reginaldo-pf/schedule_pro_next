@@ -11,7 +11,6 @@ interface ProjectItem {
   id: number;
   name: string;
   institution_name: string;
-  academic_period: string;
   timezone: string;
   report_header: string;
   monday: boolean;
@@ -47,7 +46,6 @@ const emptyProjectForm = {
   id: 0,
   name: "",
   institution_name: "",
-  academic_period: "2026.2",
   timezone: "America/Fortaleza",
   report_header: "",
   monday: true,
@@ -112,7 +110,6 @@ export function ProjectsClient({
       id: p.id,
       name: p.name,
       institution_name: p.institution_name,
-      academic_period: p.academic_period,
       timezone: p.timezone,
       report_header: p.report_header,
       monday: p.monday,
@@ -278,7 +275,6 @@ export function ProjectsClient({
               <tr>
                 <th className="ps-4">Projeto</th>
                 <th>Instituição</th>
-                <th>Período Acadêmico</th>
                 <th className="text-center">Recursos</th>
                 <th className="text-center">Status</th>
                 <th className="text-end pe-4">Ações</th>
@@ -287,7 +283,7 @@ export function ProjectsClient({
             <tbody>
               {projects.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-5 text-muted">
+                  <td colSpan={5} className="text-center py-5 text-muted">
                     Nenhum projeto cadastrado. Clique em{" "}
                     <strong>Novo Projeto</strong> para começar.
                   </td>
@@ -304,11 +300,6 @@ export function ProjectsClient({
                         </small>
                       </td>
                       <td>{p.institution_name}</td>
-                      <td>
-                        <span className="badge bg-primary-subtle text-primary">
-                          {p.academic_period}
-                        </span>
-                      </td>
                       <td className="text-center">
                         <div className="d-flex justify-content-center gap-2 small">
                           <span className="badge bg-light text-dark border">
@@ -401,7 +392,7 @@ export function ProjectsClient({
         onDelete={currentIndex !== null ? handleDelete : undefined}
       >
         <div className="row g-3">
-          <div className="col-md-5">
+          <div className="col-md-6">
             <label className="form-label small fw-semibold">
               Nome do Projeto *
             </label>
@@ -414,7 +405,7 @@ export function ProjectsClient({
               onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
           </div>
-          <div className="col-md-5">
+          <div className="col-md-6">
             <label className="form-label small fw-semibold">
               Nome da Instituição *
             </label>
@@ -426,19 +417,6 @@ export function ProjectsClient({
               value={form.institution_name}
               onChange={(e) =>
                 setForm({ ...form, institution_name: e.target.value })
-              }
-            />
-          </div>
-          <div className="col-md-2">
-            <label className="form-label small fw-semibold">Período *</label>
-            <input
-              type="text"
-              className="form-control"
-              required
-              placeholder="2026.2"
-              value={form.academic_period}
-              onChange={(e) =>
-                setForm({ ...form, academic_period: e.target.value })
               }
             />
           </div>

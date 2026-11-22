@@ -10,7 +10,6 @@ interface PublicProject {
   id: number;
   name: string;
   institution_name: string;
-  academic_period: string;
 }
 
 export function PublicHomeClient({
@@ -244,7 +243,7 @@ export function PublicHomeClient({
                     <option value="">Selecione a Instituição...</option>
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.institution_name} - {p.name} ({p.academic_period})
+                        {p.institution_name} - {p.name}
                       </option>
                     ))}
                   </select>
@@ -374,8 +373,7 @@ export function PublicHomeClient({
                               </div>
                               <div className="small text-muted">
                                 {item.project.institution_name} •{" "}
-                                {item.project.name} (
-                                {item.project.academic_period})
+                                {item.project.name}
                               </div>
                             </div>
                             <div className="d-flex align-items-center gap-2 flex-wrap">

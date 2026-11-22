@@ -10,8 +10,26 @@ import { TablePagination, usePagination } from "@/components/crud/TablePaginatio
 interface GroupItem {
   id: number;
   name: string;
+  academic_period: string;
+  start_date: string;
+  end_date: string;
   classes_count: number;
   subjects_count: number;
+}
+
+const emptyGroupForm = {
+  id: 0,
+  name: "",
+  academic_period: "",
+  start_date: "",
+  end_date: "",
+};
+
+function formatDateBr(isoDate: string): string {
+  if (!isoDate) return "";
+  const [y, m, d] = isoDate.split("-");
+  if (!y || !m || !d) return isoDate;
+  return `${d}/${m}/${y}`;
 }
 
 export function GroupsClient({
@@ -27,10 +45,12 @@ export function GroupsClient({
   const [query, setQuery] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState<number | null>(null);
-  const [form, setForm] = useState({ id: 0, name: "" });
+  const [form, setForm] = useState(emptyGroupForm);
 
-  const filtered = groups.filter((g) =>
-    g.name.toLowerCase().includes(query.toLowerCase())
+  const filtered = groups.filter(
+    (g) =>
+      g.name.toLowerCase().includes(query.toLowerCase()) ||
+      g.academic_period.toLowerCase().includes(query.toLowerCase())
   );
 
   const {
@@ -47,7 +67,7 @@ export function GroupsClient({
 
   const openCreate = () => {
     setCurrentIndex(null);
-    setForm({ id: 0, name: "" });
+    setForm(emptyGroupForm);
     setModalOpen(true);
   };
 
@@ -55,7 +75,13 @@ export function GroupsClient({
     const g = filtered[index];
     if (!g) return;
     setCurrentIndex(index);
-    setForm({ id: g.id, name: g.name });
+    setForm({
+      id: g.id,
+      name: g.name,
+      academic_period: g.academic_period || "",
+      start_date: g.start_date || "",
+      end_date: g.end_date || "",
+    });
     setModalOpen(true);
   };
 
@@ -76,7 +102,7 @@ export function GroupsClient({
           setModalOpen(false);
         } else if (action === "save_and_add_another") {
           setCurrentIndex(null);
-          setForm({ id: 0, name: "" });
+          setForm(emptyGroupForm);
         }
       } else {
         showToast(data.message || "Erro ao salvar curso/grupo.", "danger");
@@ -147,6 +173,8 @@ export function GroupsClient({
             <thead className="table-light">
               <tr>
                 <th className="ps-4">Nome do Curso / Grupo</th>
+                <th>Período / Semestre</th>
+                <th>Duração / Vigência</th>
                 <th className="text-center">Turmas Vinculadas</th>
                 <th className="text-center">Disciplinas</th>
                 <th className="text-end pe-4">Ações</th>
@@ -155,7 +183,7 @@ export function GroupsClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="text-center py-4 text-muted">
+                  <td colSpan={6} className="text-center py-4 text-muted">
                     Nenhum curso encontrado.
                   </td>
                 </tr>
@@ -163,6 +191,25 @@ export function GroupsClient({
                 paginatedItems.map((g, idx) => (
                   <tr key={g.id}>
                     <td className="ps-4 fw-bold">{g.name}</td>
+                    <td>
+                      {g.academic_period ? (
+                        <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                          {g.academic_period}
+                        </span>
+                      ) : (
+                        <span className="text-muted small">—</span>
+                      )}
+                    </td>
+                    <td className="small text-muted">
+                      {g.start_date || g.end_date ? (
+                        <span>
+                          {g.start_date ? formatDateBr(g.start_date) : "?"} até{" "}
+                          {g.end_date ? formatDateBr(g.end_date) : "?"}
+                        </span>
+                      ) : (
+                        <span>Não definida</span>
+                      )}
+                    </td>
                     <td className="text-center">
                       <span className="badge bg-success-subtle text-success">
                         {g.classes_count} turmas
@@ -218,18 +265,69 @@ export function GroupsClient({
         onSubmit={handleSave}
         onDelete={currentIndex !== null ? handleDelete : undefined}
       >
-        <div>
-          <label className="form-label small fw-semibold">
-            Nome do Curso / Grupo *
-          </label>
-          <input
-            type="text"
-            className="form-control"
-            required
-            placeholder="Ex: Análise e Desenvolvimento de Sistemas"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
+        <div className="row g-3">
+          <div className="col-md-8">
+            <label className="form-label small fw-semibold">
+              Nome do Curso / Grupo *
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              required
+              placeholder="Ex: Análise e Desenvolvimento de Sistemas"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+          </div>
+          <div className="col-md-4">
+            <label className="form-label small fw-semibold">
+              Período / Semestre *
+            </label>
+            <input
+              type="text"
+              className="form-control"
+              required
+              placeholder="Ex: 2026.2"
+              value={form.academic_period}
+              onChange={(e) =>
+                setForm({ ...form, academic_period: e.target.value })
+              }
+            />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label small fw-semibold">
+              Início do Período (Opcional)
+            </label>
+            <input
+              type="date"
+              className="form-control"
+              value={form.start_date}
+              onChange={(e) =>
+                setForm({ ...form, start_date: e.target.value })
+              }
+            />
+          </div>
+          <div className="col-md-6">
+            <label className="form-label small fw-semibold">
+              Término do Período (Opcional)
+            </label>
+            <input
+              type="date"
+              className="form-control"
+              value={form.end_date}
+              onChange={(e) =>
+                setForm({ ...form, end_date: e.target.value })
+              }
+            />
+          </div>
+          <div className="col-12">
+            <small className="text-muted">
+              <i className="bi bi-info-circle me-1" />
+              Informar o período e as datas de vigência por curso permite
+              planejar novas turmas ou semestres futuros sem perder o horário
+              atual, além de servir como base para restrições futuras.
+            </small>
+          </div>
         </div>
       </CrudModal>
     </div>

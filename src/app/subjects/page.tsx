@@ -57,7 +57,10 @@ export default async function SubjectsPage() {
       <SubjectsClient
         projectName={shellProject?.name || ""}
         subjects={serializedSubjects}
-        groups={groups.map((g) => ({ id: Number(g.id), name: g.name }))}
+        groups={groups.map((g) => ({
+          id: Number(g.id),
+          name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+        }))}
         rooms={rooms.map((r) => ({ id: Number(r.id), name: r.name }))}
       />
     </AppShell>

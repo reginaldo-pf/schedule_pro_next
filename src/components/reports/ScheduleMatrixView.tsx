@@ -49,7 +49,7 @@ export function ScheduleMatrixView({
   projectHeader: {
     name: string;
     institution_name: string;
-    academic_period: string;
+    academic_period?: string;
     report_header: string;
   };
   days: { code: string; label: string }[];
@@ -205,7 +205,9 @@ export function ScheduleMatrixView({
                           </span>
                           <span>
                             <strong>Vigência:</strong>{" "}
-                            {projectHeader.academic_period || "Atual"}
+                            {page.header_info.academic_period ||
+                              projectHeader.academic_period ||
+                              "Atual"}
                           </span>
                           {page.header_info.room_name && (
                             <span>
@@ -389,10 +391,12 @@ export function ScheduleMatrixView({
                               <strong>Curso(s):</strong> {page.group_names}
                             </span>
                           )}
-                          <span>
-                            <strong>Vigência:</strong>{" "}
-                            {projectHeader.academic_period || "Atual"}
-                          </span>
+                          {projectHeader.academic_period && (
+                            <span>
+                              <strong>Vigência:</strong>{" "}
+                              {projectHeader.academic_period}
+                            </span>
+                          )}
                           {page.teacher.email && (
                             <span>
                               <strong>E-mail:</strong> {page.teacher.email}

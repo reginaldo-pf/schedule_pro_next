@@ -50,11 +50,10 @@ export function ScheduleBuilderClient({
     id: number;
     name: string;
     institution_name: string;
-    academic_period: string;
   };
   days: { code: string; label: string }[];
   periods: BuilderPeriod[];
-  groups: { id: number; name: string }[];
+  groups: { id: number; name: string; academic_period?: string }[];
   classes: BuilderClass[];
   teachers: BuilderTeacher[];
   rooms: BuilderRoom[];
@@ -598,7 +597,8 @@ export function ScheduleBuilderClient({
                     Período
                   </small>
                   <span className="fw-medium text-primary">
-                    {project.academic_period}
+                    {groups.find((g) => g.id === selectedGroupId)
+                      ?.academic_period || "Por Curso"}
                   </span>
                 </div>
               </div>

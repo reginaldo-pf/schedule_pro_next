@@ -46,7 +46,6 @@ export default async function ProjectsPage() {
     id: Number(p.id),
     name: p.name,
     institution_name: p.institution_name,
-    academic_period: p.academic_period,
     timezone: p.timezone,
     report_header: p.report_header,
     monday: p.monday,

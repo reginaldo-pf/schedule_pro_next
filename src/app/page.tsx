@@ -17,7 +17,6 @@ export default async function HomePage() {
     id: Number(p.id),
     name: p.name,
     institution_name: p.institution_name,
-    academic_period: p.academic_period,
   }));
 
   return <PublicHomeClient projects={serializedProjects} />;

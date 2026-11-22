@@ -308,7 +308,7 @@ export function ScheduleMatrixPdfDocument({
   projectHeader: {
     name: string;
     institution_name: string;
-    academic_period: string;
+    academic_period?: string;
     report_header: string;
   };
   days: { code: string; label: string }[];
@@ -377,7 +377,9 @@ export function ScheduleMatrixPdfDocument({
                       </Text>
                       <Text style={styles.metaItem}>
                         <Text style={styles.metaLabel}>Vigência: </Text>
-                        {projectHeader.academic_period || "Atual"}
+                        {page.header_info.academic_period ||
+                          projectHeader.academic_period ||
+                          "Atual"}
                       </Text>
                       {page.header_info.room_name ? (
                         <Text style={styles.metaItem}>
@@ -681,10 +683,12 @@ export function ScheduleMatrixPdfDocument({
                         {page.group_names}
                       </Text>
                     ) : null}
-                    <Text style={styles.metaItem}>
-                      <Text style={styles.metaLabel}>Vigência: </Text>
-                      {projectHeader.academic_period || "Atual"}
-                    </Text>
+                    {projectHeader.academic_period ? (
+                      <Text style={styles.metaItem}>
+                        <Text style={styles.metaLabel}>Vigência: </Text>
+                        {projectHeader.academic_period}
+                      </Text>
+                    ) : null}
                     {page.teacher.email ? (
                       <Text style={styles.metaItem}>
                         <Text style={styles.metaLabel}>E-mail: </Text>

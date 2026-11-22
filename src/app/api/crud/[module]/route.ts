@@ -178,17 +178,33 @@ export async function POST(
     switch (module) {
       case "groups": {
         const name = (body.name || "").trim();
-        if (!name) {
+        const academicPeriod = (body.academic_period || "").trim();
+        const startDateStr = (body.start_date || "").trim();
+        const endDateStr = (body.end_date || "").trim();
+        const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00.000Z`) : null;
+        const endDate = endDateStr ? new Date(`${endDateStr}T00:00:00.000Z`) : null;
+
+        if (!name || !academicPeriod) {
           return NextResponse.json(
-            { ok: false, message: "O nome do curso/grupo é obrigatório." },
+            { ok: false, message: "O nome do curso/grupo e o período/semestre são obrigatórios." },
             { status: 400 }
           );
         }
+        if (startDate && endDate && endDate < startDate) {
+          return NextResponse.json(
+            { ok: false, message: "A data de término não pode ser anterior à data de início." },
+            { status: 400 }
+          );
+        }
+
         const created = await prisma.groups_group.create({
           data: {
             project_id: project.id,
             owner_id: user.id,
             name,
+            academic_period: academicPeriod,
+            start_date: startDate,
+            end_date: endDate,
             created_at: now,
             updated_at: now,
           },
@@ -620,10 +636,33 @@ export async function PUT(
 
     switch (module) {
       case "groups": {
+        const name = (body.name || "").trim();
+        const academicPeriod = (body.academic_period || "").trim();
+        const startDateStr = (body.start_date || "").trim();
+        const endDateStr = (body.end_date || "").trim();
+        const startDate = startDateStr ? new Date(`${startDateStr}T00:00:00.000Z`) : null;
+        const endDate = endDateStr ? new Date(`${endDateStr}T00:00:00.000Z`) : null;
+
+        if (!name || !academicPeriod) {
+          return NextResponse.json(
+            { ok: false, message: "O nome do curso/grupo e o período/semestre são obrigatórios." },
+            { status: 400 }
+          );
+        }
+        if (startDate && endDate && endDate < startDate) {
+          return NextResponse.json(
+            { ok: false, message: "A data de término não pode ser anterior à data de início." },
+            { status: 400 }
+          );
+        }
+
         const updated = await prisma.groups_group.update({
           where: { id },
           data: {
-            name: (body.name || "").trim(),
+            name,
+            academic_period: academicPeriod,
+            start_date: startDate,
+            end_date: endDate,
             updated_at: now,
           },
         });

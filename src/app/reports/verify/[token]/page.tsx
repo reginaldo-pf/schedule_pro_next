@@ -84,9 +84,8 @@ export default async function ReportVerifyPage({
             <div className="card-body p-3 px-4 bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
               <div className="small text-secondary">
                 <strong>Instituição:</strong> {project.institution_name}{" "}
-                &nbsp;|&nbsp; <strong>Projeto:</strong> {project.name} (
-                {project.academic_period}) &nbsp;|&nbsp;{" "}
-                <strong>Última atualização da grade:</strong>{" "}
+                &nbsp;|&nbsp; <strong>Projeto:</strong> {project.name}{" "}
+                &nbsp;|&nbsp; <strong>Última atualização da grade:</strong>{" "}
                 {generatedAt || "Tempo Real"}
               </div>
               <div className="d-flex gap-2">
@@ -111,7 +110,6 @@ export default async function ReportVerifyPage({
             projectHeader={{
               name: project.name,
               institution_name: project.institution_name,
-              academic_period: project.academic_period,
               report_header: project.report_header,
             }}
             days={days}
@@ -162,9 +160,8 @@ export default async function ReportVerifyPage({
             <div className="card-body p-3 px-4 bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
               <div className="small text-secondary">
                 <strong>Instituição:</strong> {project.institution_name}{" "}
-                &nbsp;|&nbsp; <strong>Projeto:</strong> {project.name} (
-                {project.academic_period}) &nbsp;|&nbsp;{" "}
-                <strong>Última atualização:</strong>{" "}
+                &nbsp;|&nbsp; <strong>Projeto:</strong> {project.name}{" "}
+                &nbsp;|&nbsp; <strong>Última atualização:</strong>{" "}
                 {generatedAt || "Tempo Real"}
               </div>
               <div className="d-flex gap-2">
@@ -189,7 +186,6 @@ export default async function ReportVerifyPage({
             projectHeader={{
               name: project.name,
               institution_name: project.institution_name,
-              academic_period: project.academic_period,
               report_header: project.report_header,
             }}
             days={days}
@@ -294,7 +290,7 @@ export default async function ReportVerifyPage({
                     Projeto / Vigência
                   </div>
                   <div className="fw-bold text-dark mt-1">
-                    {project.name} ({project.academic_period})
+                    {project.name}
                   </div>
                 </div>
               </div>

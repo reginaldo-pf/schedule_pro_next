@@ -23,7 +23,6 @@ export interface ShellProject {
   id: number;
   name: string;
   institution_name: string;
-  academic_period: string;
 }
 
 export interface ShellSubscription {
@@ -197,7 +196,7 @@ export function AppShell({
                   >
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
-                        {p.name} ({p.academic_period})
+                        {p.name}
                       </option>
                     ))}
                   </select>

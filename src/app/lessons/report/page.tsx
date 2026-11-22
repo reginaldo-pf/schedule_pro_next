@@ -214,7 +214,10 @@ export default async function LessonsMatrixReportPage({
         />
 
         <LessonsReportFilterBar
-          groups={groups.map((g) => ({ id: Number(g.id), name: g.name }))}
+          groups={groups.map((g) => ({
+            id: Number(g.id),
+            name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          }))}
           classes={classes.map((c) => ({
             id: Number(c.id),
             group_id: Number(c.group_id),
@@ -263,8 +266,7 @@ export default async function LessonsMatrixReportPage({
         <div className="border-bottom pb-3 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
           <div>
             <div className="text-uppercase small fw-bold text-primary">
-              {project.institution_name} • {project.name} (
-              {project.academic_period})
+              {project.institution_name} • {project.name}
             </div>
             <h5 className="fw-bold mb-0">
               Quantitativo de Aulas e Distribuição por Professor

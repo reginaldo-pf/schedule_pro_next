@@ -208,11 +208,14 @@ export default async function ScheduleBuilderPage({
           id: Number(project.id),
           name: project.name,
           institution_name: project.institution_name,
-          academic_period: project.academic_period,
         }}
         days={days}
         periods={serializedPeriods}
-        groups={groups.map((g) => ({ id: Number(g.id), name: g.name }))}
+        groups={groups.map((g) => ({
+          id: Number(g.id),
+          name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          academic_period: g.academic_period || "",
+        }))}
         classes={serializedClasses}
         teachers={serializedTeachers}
         rooms={serializedRooms}

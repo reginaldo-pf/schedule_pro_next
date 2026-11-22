@@ -27,7 +27,7 @@ export interface ReportTimelineRow {
 }
 
 export interface CourseReportPage {
-  group: { id: number; name: string };
+  group: { id: number; name: string; academic_period?: string };
   school_class: { id: number; name: string; color: string; level: string };
   room_name: string;
   matrix: Record<string, Record<number, ReportEntryCell>>;
@@ -36,6 +36,7 @@ export interface CourseReportPage {
   header_info: {
     class_name: string;
     group_name: string;
+    academic_period?: string;
     room_name: string;
   };
 }
@@ -242,7 +243,11 @@ export async function buildCourseReportPages({
           : sc.rooms_room?.name || "";
 
       pages.push({
-        group: { id: Number(group.id), name: group.name },
+        group: {
+          id: Number(group.id),
+          name: group.name,
+          academic_period: group.academic_period || "",
+        },
         school_class: {
           id: Number(sc.id),
           name: sc.name,
@@ -256,6 +261,7 @@ export async function buildCourseReportPages({
         header_info: {
           class_name: sc.name,
           group_name: group.name,
+          academic_period: group.academic_period || "",
           room_name: roomName,
         },
       });
@@ -355,7 +361,10 @@ export async function buildTeacherReportPages({
       const pId = Number(entry.period_id);
       activePeriodIds.add(pId);
       if (entry.classes_schoolclass.groups_group?.name) {
-        groupNamesSet.add(entry.classes_schoolclass.groups_group.name);
+        const g = entry.classes_schoolclass.groups_group;
+        groupNamesSet.add(
+          g.academic_period ? `${g.name} (${g.academic_period})` : g.name
+        );
       }
 
       const resolvedRoomName =

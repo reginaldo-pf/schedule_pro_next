@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   const text =
     `Olá, ${teacher.name}.\n\n` +
     `A coordenação do projeto "${project.name}" na instituição ${project.institution_name} ` +
-    `solicitou que você informe suas preferências e disponibilidades de horário para o período acadêmico ${project.academic_period}.\n\n` +
+    `solicitou que você informe suas preferências e disponibilidades de horário.\n\n` +
     `Acesse o seu portal exclusivo utilizando o link abaixo (não é necessário login ou senha):\n\n` +
     `${portalUrl}\n\n` +
     `Este link é de uso exclusivo e expira em 48 horas.\n\n` +
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
                 Olá, <strong>${teacher.name}</strong>,
               </p>
               <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:#334155;">
-                A coordenação do projeto <strong>${project.name}</strong> na instituição <strong>${project.institution_name}</strong> solicitou o preenchimento de suas preferências e disponibilidades de horário para o período letivo <strong>${project.academic_period}</strong>.
+                A coordenação do projeto <strong>${project.name}</strong> na instituição <strong>${project.institution_name}</strong> solicitou o preenchimento de suas preferências e disponibilidades de horário.
               </p>
               <p style="margin:0 0 24px;font-size:14.5px;line-height:1.6;color:#334155;">
                 Clique no botão abaixo para acessar seu <strong>Portal Exclusivo do Docente</strong> (não é necessário login ou senha):

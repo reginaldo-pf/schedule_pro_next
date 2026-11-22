@@ -67,7 +67,6 @@ export async function requireShellContext(options?: {
         id: Number(activeProject.id),
         name: activeProject.name,
         institution_name: activeProject.institution_name,
-        academic_period: activeProject.academic_period,
       }
     : null;
 
@@ -75,7 +74,6 @@ export async function requireShellContext(options?: {
     id: Number(p.id),
     name: p.name,
     institution_name: p.institution_name,
-    academic_period: p.academic_period,
   }));
 
   const shellSubscription: ShellSubscription | null = subInfo

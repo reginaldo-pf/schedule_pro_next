@@ -28,6 +28,9 @@ export default async function GroupsPage() {
   const serialized = groups.map((g) => ({
     id: Number(g.id),
     name: g.name,
+    academic_period: g.academic_period || "",
+    start_date: g.start_date ? g.start_date.toISOString().slice(0, 10) : "",
+    end_date: g.end_date ? g.end_date.toISOString().slice(0, 10) : "",
     classes_count: g._count.classes_schoolclass,
     subjects_count: g._count.subjects_subject,
   }));

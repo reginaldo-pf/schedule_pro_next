@@ -35,7 +35,6 @@ export function TeacherPortalClient({
   project: {
     name: string;
     institution_name: string;
-    academic_period: string;
   };
   days: { code: string; label: string }[];
   periods: {
@@ -116,7 +115,7 @@ export function TeacherPortalClient({
                 Portal Exclusivo do Docente • {project.institution_name}
               </span>
               <h4 className="fw-bold mb-0">
-                Preferências de Horário — {project.name} ({project.academic_period})
+                Preferências de Horário — {project.name}
               </h4>
             </div>
             <div className="d-flex gap-2">

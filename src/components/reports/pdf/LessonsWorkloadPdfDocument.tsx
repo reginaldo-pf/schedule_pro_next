@@ -240,7 +240,7 @@ export function LessonsWorkloadPdfDocument({
   projectHeader: {
     name: string;
     institution_name: string;
-    academic_period: string;
+    academic_period?: string;
   };
   teacherGroups: TeacherWorkloadGroup[];
   activeFilterLabels: string[];
@@ -282,10 +282,12 @@ export function LessonsWorkloadPdfDocument({
                 <Text style={styles.metaLabel}>Projeto: </Text>
                 {projectHeader.name}
               </Text>
-              <Text style={styles.metaItem}>
-                <Text style={styles.metaLabel}>Vigência: </Text>
-                {projectHeader.academic_period || "Atual"}
-              </Text>
+              {projectHeader.academic_period ? (
+                <Text style={styles.metaItem}>
+                  <Text style={styles.metaLabel}>Vigência: </Text>
+                  {projectHeader.academic_period}
+                </Text>
+              ) : null}
               <Text style={styles.metaItem}>
                 <Text style={styles.metaLabel}>Docentes: </Text>
                 {teacherGroups.length}

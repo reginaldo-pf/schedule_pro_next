@@ -71,7 +71,10 @@ export default async function CourseReportPage({
         />
 
         <CourseReportFilterBar
-          groups={groups.map((g) => ({ id: Number(g.id), name: g.name }))}
+          groups={groups.map((g) => ({
+            id: Number(g.id),
+            name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+          }))}
           classes={classes.map((c) => ({
             id: Number(c.id),
             group_id: Number(c.group_id),
@@ -87,7 +90,6 @@ export default async function CourseReportPage({
         projectHeader={{
           name: project.name,
           institution_name: project.institution_name,
-          academic_period: project.academic_period,
           report_header: project.report_header,
         }}
         days={days}

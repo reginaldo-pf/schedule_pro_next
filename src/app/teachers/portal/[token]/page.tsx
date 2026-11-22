@@ -105,7 +105,6 @@ export default async function TeacherPortalPage({
       project={{
         name: project.name,
         institution_name: project.institution_name,
-        academic_period: project.academic_period,
       }}
       days={days}
       periods={periods}

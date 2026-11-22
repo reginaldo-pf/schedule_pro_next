@@ -135,13 +135,12 @@ export async function POST(request: Request) {
 
   const name = (body.name || "").trim();
   const institutionName = (body.institution_name || "").trim();
-  const academicPeriod = (body.academic_period || "").trim();
 
-  if (!name || !institutionName || !academicPeriod) {
+  if (!name || !institutionName) {
     return NextResponse.json(
       {
         ok: false,
-        message: "Nome do projeto, instituição e período acadêmico são obrigatórios.",
+        message: "Nome do projeto e instituição são obrigatórios.",
       },
       { status: 400 }
     );
@@ -153,7 +152,6 @@ export async function POST(request: Request) {
       owner_id: user.id,
       name,
       institution_name: institutionName,
-      academic_period: academicPeriod,
       timezone: body.timezone || "America/Fortaleza",
       report_header: body.report_header || "",
       monday: body.monday !== false,
@@ -213,7 +211,6 @@ export async function PUT(request: Request) {
     data: {
       name: (body.name || project.name).trim(),
       institution_name: (body.institution_name || project.institution_name).trim(),
-      academic_period: (body.academic_period || project.academic_period).trim(),
       timezone: body.timezone || project.timezone,
       report_header: body.report_header ?? project.report_header,
       monday: Boolean(body.monday),

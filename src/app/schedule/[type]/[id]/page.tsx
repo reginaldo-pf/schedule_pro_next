@@ -50,7 +50,6 @@ export default async function PublicSchedulePage({
             projectHeader={{
               name: project.name,
               institution_name: project.institution_name,
-              academic_period: project.academic_period,
               report_header: project.report_header,
             }}
             days={days}
@@ -96,7 +95,6 @@ export default async function PublicSchedulePage({
             projectHeader={{
               name: project.name,
               institution_name: project.institution_name,
-              academic_period: project.academic_period,
               report_header: project.report_header,
             }}
             days={days}

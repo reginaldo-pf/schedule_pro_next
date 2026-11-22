@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const subject = `[Schedule Pro] Alteração de Disponibilidade de Horário - ${teacher.name}`;
   const text =
     `Olá, ${teacher.name}.\n\n` +
-    `Você solicitou acesso para alterar suas disponibilidades de horário no projeto "${project.name}" (${project.institution_name} - ${project.academic_period}).\n\n` +
+    `Você solicitou acesso para alterar suas disponibilidades de horário no projeto "${project.name}" (${project.institution_name}).\n\n` +
     `Acesse o seu portal utilizando o link abaixo (válido por 10 minutos):\n\n` +
     `${portalUrl}\n\n` +
     `AVISO: Este é um e-mail automático enviado pelo sistema. Por favor, não responda a esta mensagem.\n\n` +
@@ -94,7 +94,7 @@ export async function POST(request: Request) {
                 Olá, <strong>${teacher.name}</strong>,
               </p>
               <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:#334155;">
-                Foi solicitado um link de acesso para alteração de suas disponibilidades de horário no projeto <strong>${project.name}</strong> (${project.institution_name} • ${project.academic_period}).
+                Foi solicitado um link de acesso para alteração de suas disponibilidades de horário no projeto <strong>${project.name}</strong> (${project.institution_name}).
               </p>
               <div style="text-align:center;margin:28px 0;">
                 <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-block;background-color:#1e3a8a;color:#ffffff;text-decoration:none;font-weight:700;font-size:14.5px;padding:13px 28px;border-radius:6px;">

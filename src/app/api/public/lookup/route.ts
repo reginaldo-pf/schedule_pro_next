@@ -16,7 +16,10 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({
       ok: true,
-      groups: groups.map((g) => ({ id: Number(g.id), name: g.name })),
+      groups: groups.map((g) => ({
+        id: Number(g.id),
+        name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+      })),
     });
   }
 
@@ -109,7 +112,6 @@ export async function POST(request: Request) {
         id: Number(t.schedules_project.id),
         name: t.schedules_project.name,
         institution_name: t.schedules_project.institution_name,
-        academic_period: t.schedules_project.academic_period,
       },
       hasSchedule,
       availabilityRequestToken,

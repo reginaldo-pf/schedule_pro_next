@@ -151,9 +151,6 @@ export function DashboardClient({
                   <h6 className="mb-0 fw-bold text-dark">
                     {activeProject.name}
                   </h6>
-                  <span className="badge bg-primary-subtle text-primary fw-semibold">
-                    {activeProject.academic_period}
-                  </span>
                 </div>
                 <p
                   className="text-muted m-0 d-flex flex-wrap gap-2 align-items-center"
