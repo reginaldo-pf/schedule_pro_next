@@ -2,7 +2,7 @@ import { requireShellContext } from "@/lib/shell-context";
 import { prisma, formatTime } from "@/lib/prisma";
 import { ACTIVE_RUN_STATUSES } from "@/lib/schedule/collision-engine";
 import { getActiveProjectDaysList } from "@/lib/schedule/report-builder";
-import { formatGroupSelectLabel } from "@/lib/schedule/group-helpers";
+import { formatGroupSelectLabel, toIsoDateStr } from "@/lib/schedule/group-helpers";
 import { AppShell } from "@/components/layout/AppShell";
 import { ScheduleBuilderClient } from "@/components/builder/ScheduleBuilderClient";
 
@@ -227,6 +227,8 @@ export default async function ScheduleBuilderPage({
           name: formatGroupSelectLabel(g),
           academic_period: g.academic_period || "",
           status: g.status || "PUBLISHED",
+          start_date: toIsoDateStr(g.start_date),
+          end_date: toIsoDateStr(g.end_date),
         }))}
         classes={serializedClasses}
         teachers={serializedTeachers}
@@ -238,6 +240,8 @@ export default async function ScheduleBuilderPage({
           period_id: Number(a.period_id),
           day_of_week: a.day_of_week,
           status: a.status,
+          valid_from: toIsoDateStr(a.valid_from),
+          valid_until: toIsoDateStr(a.valid_until),
         }))}
         baseRoomAvailabilities={roomAvs.map((a) => ({
           room_id: Number(a.room_id),

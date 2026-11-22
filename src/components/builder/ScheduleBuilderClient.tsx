@@ -4,6 +4,12 @@ import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useUI } from "@/components/ui/UIProvider";
 import {
+  doDateRangesOverlap,
+  doGroupListsOverlap,
+  getCombinedDateRange,
+  type DateRange,
+} from "@/lib/schedule/group-helpers";
+import {
   evaluateSlotCompatibility,
   computePedagogicalWarnings,
   type BuilderLessonUnit,
@@ -53,7 +59,14 @@ export function ScheduleBuilderClient({
   };
   days: { code: string; label: string }[];
   periods: BuilderPeriod[];
-  groups: { id: number; name: string; academic_period?: string; status?: string }[];
+  groups: {
+    id: number;
+    name: string;
+    academic_period?: string;
+    status?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  }[];
   classes: BuilderClass[];
   teachers: BuilderTeacher[];
   rooms: BuilderRoom[];
@@ -173,13 +186,43 @@ export function ScheduleBuilderClient({
     setClassUnits(buildUnitsForClass(cId, savedEntries));
   };
 
-  // Compute effective availabilities including occupations from OTHER classes in savedEntries!
+  const groupRanges = useMemo(
+    () =>
+      new Map<number, DateRange>(
+        groups.map((g) => [
+          g.id,
+          { start_date: g.start_date ?? null, end_date: g.end_date ?? null },
+        ])
+      ),
+    [groups]
+  );
+
+  const classGroupMap = useMemo(
+    () => new Map<number, number>(classes.map((c) => [c.id, c.group_id])),
+    [classes]
+  );
+
+  // Compute effective availabilities including occupations from OTHER classes in overlapping durations!
   const {
     effectiveTeacherAvs,
     effectiveRoomAvs,
     effectiveClassAvs,
   } = useMemo(() => {
-    const tAvs: TeacherAvailabilityEntry[] = [...baseTeacherAvailabilities];
+    const selectedGroupIdForClass =
+      (selectedClassId ? classGroupMap.get(selectedClassId) : undefined) ||
+      (selectedGroupId || undefined);
+    const selectedGroupIds = selectedGroupIdForClass ? [selectedGroupIdForClass] : [];
+    const selectedRange = getCombinedDateRange(selectedGroupIds, groupRanges);
+
+    const tAvs: TeacherAvailabilityEntry[] =
+      selectedGroupIds.length > 0
+        ? baseTeacherAvailabilities.filter((a) =>
+            doDateRangesOverlap(selectedRange, {
+              start_date: a.valid_from ?? null,
+              end_date: a.valid_until ?? null,
+            })
+          )
+        : [...baseTeacherAvailabilities];
     const rAvs: RoomAvailabilityEntry[] = [...baseRoomAvailabilities];
     const cAvs: ClassAvailabilityEntry[] = [...baseClassAvailabilities];
 
@@ -188,6 +231,14 @@ export function ScheduleBuilderClient({
     );
 
     for (const entry of otherClassEntries) {
+      const entryGroupId = classGroupMap.get(entry.school_class_id);
+      const overlapsSelected =
+        selectedGroupIds.length === 0 ||
+        !entryGroupId ||
+        doGroupListsOverlap(selectedGroupIds, [entryGroupId], groupRanges);
+
+      if (!overlapsSelected) continue;
+
       for (const tId of entry.teacher_ids) {
         tAvs.push({
           teacher_id: tId,
@@ -233,6 +284,9 @@ export function ScheduleBuilderClient({
     baseClassAvailabilities,
     savedEntries,
     selectedClassId,
+    selectedGroupId,
+    classGroupMap,
+    groupRanges,
   ]);
 
   // Precompute slot compatibility map whenever a lesson unit is being dragged

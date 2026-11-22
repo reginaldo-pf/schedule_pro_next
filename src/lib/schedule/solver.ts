@@ -1,6 +1,14 @@
 import { prisma } from "../prisma";
 import { ACTIVE_RUN_STATUSES, DAY_SHORT_LABELS, DAY_WEIGHTS } from "./collision-engine";
 import { PlanService } from "../services/access-control";
+import {
+  doDateRangesOverlap,
+  doGroupListsOverlap,
+  getCombinedDateRange,
+  maxSimultaneousInRange,
+  toIsoDateStr,
+  type DateRange,
+} from "./group-helpers";
 
 export interface AuditError {
   code: string;
@@ -49,6 +57,7 @@ export interface SolverLessonUnit {
   allow_consecutive_days: boolean;
   class_groups: number[];
   class_levels: string[];
+  date_range: DateRange;
   fixed_slot_key: string | null;
   is_locked: boolean;
 }
@@ -233,6 +242,7 @@ export class ScheduleValidationService {
       teachersList,
       roomsList,
       classesList,
+      groupsList,
       periodsList,
       latestRun,
     ] = await Promise.all([
@@ -257,6 +267,7 @@ export class ScheduleValidationService {
       prisma.teachers_teacher.findMany({ where: { project_id: projectId } }),
       prisma.rooms_room.findMany({ where: { project_id: projectId } }),
       prisma.classes_schoolclass.findMany({ where: { project_id: projectId } }),
+      prisma.groups_group.findMany({ where: { project_id: projectId } }),
       prisma.periods_period.findMany({ where: { project_id: projectId } }),
       prisma.solver_schedulegenerationrun.findFirst({
         where: {
@@ -284,11 +295,30 @@ export class ScheduleValidationService {
       }),
     ]);
 
-    const teacherUnavail = new Set(
-      teacherUnavailRows.map(
-        (r) => `${Number(r.teacher_id)}_${Number(r.period_id)}_${r.day_of_week}`
-      )
+    const groupRanges = new Map<number, DateRange>(
+      groupsList.map((g) => [
+        Number(g.id),
+        {
+          start_date: toIsoDateStr(g.start_date),
+          end_date: toIsoDateStr(g.end_date),
+        },
+      ])
     );
+    const classGroupMap = new Map<number, number>(
+      classesList.map((c) => [Number(c.id), Number(c.group_id)])
+    );
+
+    const teacherUnavail = new Map<string, DateRange[]>();
+    for (const r of teacherUnavailRows) {
+      const k = `${Number(r.teacher_id)}_${Number(r.period_id)}_${r.day_of_week}`;
+      const list = teacherUnavail.get(k) || [];
+      list.push({
+        start_date: toIsoDateStr(r.valid_from),
+        end_date: toIsoDateStr(r.valid_until),
+      });
+      teacherUnavail.set(k, list);
+    }
+
     const roomUnavail = new Set(
       roomUnavailRows.map(
         (r) => `${Number(r.room_id)}_${Number(r.period_id)}_${r.day_of_week}`
@@ -305,8 +335,8 @@ export class ScheduleValidationService {
     const schoolClasses = new Map(classesList.map((c) => [Number(c.id), c]));
     const periods = new Map(periodsList.map((p) => [Number(p.id), p]));
 
-    const teacherBusy = new Map<string, number>(); // key -> lesson_id
-    const roomBusy = new Map<string, Set<number>>(); // key -> Set<lesson_id>
+    const teacherBusy = new Map<string, { lessonId: number; groupIds: number[] }[]>();
+    const roomBusy = new Map<string, { lessonId: number; groupIds: number[] }[]>();
     const classBusy = new Map<string, number>(); // key -> lesson_id
 
     const classesInEntries = new Set<number>(
@@ -326,10 +356,15 @@ export class ScheduleValidationService {
         }
         const pId = Number(existing.period_id);
         const day = existing.day_of_week;
+        const gId = classGroupMap.get(scId);
+        const entryGroupIds = gId ? [gId] : [];
 
         for (const lt of existing.lessons_lesson.lessons_lesson_teachers) {
           const tId = Number(lt.teacher_id);
-          teacherBusy.set(`${tId}_${pId}_${day}`, lId);
+          const tKey = `${tId}_${pId}_${day}`;
+          const list = teacherBusy.get(tKey) || [];
+          list.push({ lessonId: lId, groupIds: entryGroupIds });
+          teacherBusy.set(tKey, list);
         }
 
         const effectiveRoomId = existing.room_id
@@ -340,9 +375,9 @@ export class ScheduleValidationService {
 
         if (effectiveRoomId) {
           const rKey = `${effectiveRoomId}_${pId}_${day}`;
-          const set = roomBusy.get(rKey) || new Set<number>();
-          set.add(lId);
-          roomBusy.set(rKey, set);
+          const list = roomBusy.get(rKey) || [];
+          list.push({ lessonId: lId, groupIds: entryGroupIds });
+          roomBusy.set(rKey, list);
         }
 
         classBusy.set(`${scId}_${pId}_${day}`, lId);
@@ -354,6 +389,9 @@ export class ScheduleValidationService {
       const period = periods.get(entry.period_id);
       const periodDisplay = period ? period.name : `período ${entry.period_id}`;
       const lessonId = entry.lesson_id;
+      const gId = entry.school_class_id ? classGroupMap.get(entry.school_class_id) : undefined;
+      const entryGroupIds = gId ? [gId] : [];
+      const entryRange = getCombinedDateRange(entryGroupIds, groupRanges);
 
       // Validate all teachers of this lesson (co-teaching aware)
       const teacherIds =
@@ -365,20 +403,27 @@ export class ScheduleValidationService {
 
       for (const tId of teacherIds) {
         const tKey = `${tId}_${entry.period_id}_${entry.day_of_week}`;
-        if (teacherUnavail.has(tKey)) {
+        const unavRanges = teacherUnavail.get(tKey) || [];
+        if (unavRanges.some((r) => doDateRangesOverlap(entryRange, r))) {
           const t = teachers.get(tId);
           throw new Error(
             `O professor ${t?.name || "Desconhecido"} está indisponível na ${dayDisplay} (${periodDisplay}).`
           );
         }
-        const busyLessonId = teacherBusy.get(tKey);
-        if (busyLessonId !== undefined && busyLessonId !== lessonId) {
+        const busyList = teacherBusy.get(tKey) || [];
+        const hasConflict = busyList.some(
+          (b) =>
+            b.lessonId !== lessonId &&
+            doGroupListsOverlap(entryGroupIds, b.groupIds, groupRanges)
+        );
+        if (hasConflict) {
           const t = teachers.get(tId);
           throw new Error(
             `O professor ${t?.name || "Desconhecido"} já possui outra aula na ${dayDisplay} (${periodDisplay}).`
           );
         }
-        teacherBusy.set(tKey, lessonId);
+        busyList.push({ lessonId, groupIds: entryGroupIds });
+        teacherBusy.set(tKey, busyList);
       }
 
       // Validate room availability & simultaneous_lessons capacity
@@ -392,14 +437,23 @@ export class ScheduleValidationService {
         }
         const room = rooms.get(entry.room_id);
         const simultLimit = room ? room.simultaneous_lessons : 1;
-        const allocatedSet = roomBusy.get(rKey) || new Set<number>();
-        if (!allocatedSet.has(lessonId) && allocatedSet.size >= simultLimit) {
+        const allocatedList = roomBusy.get(rKey) || [];
+        const overlappingDistinctLessons = new Set(
+          allocatedList
+            .filter(
+              (b) =>
+                b.lessonId !== lessonId &&
+                doGroupListsOverlap(entryGroupIds, b.groupIds, groupRanges)
+            )
+            .map((b) => b.lessonId)
+        );
+        if (overlappingDistinctLessons.size >= simultLimit) {
           throw new Error(
             `A sala ${room?.name || "Desconhecida"} excedeu a capacidade de aulas simultâneas (${simultLimit}) na ${dayDisplay} (${periodDisplay}).`
           );
         }
-        allocatedSet.add(lessonId);
-        roomBusy.set(rKey, allocatedSet);
+        allocatedList.push({ lessonId, groupIds: entryGroupIds });
+        roomBusy.set(rKey, allocatedList);
       }
 
       // Validate class availability & collision
@@ -481,21 +535,34 @@ export class ScheduleSolver {
       }
     }
 
-    const lessons = await prisma.lessons_lesson.findMany({
-      where: {
-        project_id: projectId,
-        active: true,
-        subjects_subject: { groups_group: { status: { not: "INACTIVE" } } },
-      },
-      include: {
-        subjects_subject: true,
-        lessons_lesson_classes: {
-          include: { classes_schoolclass: true },
+    const [lessons, groupsList] = await Promise.all([
+      prisma.lessons_lesson.findMany({
+        where: {
+          project_id: projectId,
+          active: true,
+          subjects_subject: { groups_group: { status: { not: "INACTIVE" } } },
         },
-        lessons_lesson_teachers: true,
-      },
-      orderBy: { id: "asc" },
-    });
+        include: {
+          subjects_subject: true,
+          lessons_lesson_classes: {
+            include: { classes_schoolclass: true },
+          },
+          lessons_lesson_teachers: true,
+        },
+        orderBy: { id: "asc" },
+      }),
+      prisma.groups_group.findMany({ where: { project_id: projectId } }),
+    ]);
+
+    const groupRanges = new Map<number, DateRange>(
+      groupsList.map((g) => [
+        Number(g.id),
+        {
+          start_date: toIsoDateStr(g.start_date),
+          end_date: toIsoDateStr(g.end_date),
+        },
+      ])
+    );
 
     const targetSet =
       targetClassIds && targetClassIds.length > 0
@@ -521,6 +588,7 @@ export class ScheduleSolver {
       const classLevels = Array.from(
         new Set(classObjs.map((c) => c.level).filter(Boolean))
       );
+      const unitDateRange = getCombinedDateRange(classGroups, groupRanges);
 
       for (let i = 1; i <= lesson.number_of_lessons; i++) {
         const unitKey = `lesson_${Number(lesson.id)}_unit_${i}`;
@@ -547,6 +615,7 @@ export class ScheduleSolver {
           allow_consecutive_days: lesson.allow_consecutive_days,
           class_groups: classGroups,
           class_levels: classLevels,
+          date_range: unitDateRange,
           fixed_slot_key: !isTarget || isLocked ? fixedSlot : null,
           is_locked: isLocked,
         });
@@ -570,12 +639,24 @@ export class ScheduleSolver {
         prisma.rooms_room.findMany({ where: { project_id: projectId } }),
       ]);
 
-    const teacherUnavailable = new Set<string>();
-    const teacherUndesired = new Set<string>();
+    const teacherUnavailable = new Map<string, DateRange[]>();
+    const teacherUndesired = new Map<string, DateRange[]>();
     for (const av of teacherAvs) {
       const k = `${Number(av.teacher_id)}_${Number(av.period_id)}_${av.day_of_week}`;
-      if (av.status === "UNAVAILABLE") teacherUnavailable.add(k);
-      if (av.status === "UNDESIRED") teacherUndesired.add(k);
+      const range: DateRange = {
+        start_date: toIsoDateStr(av.valid_from),
+        end_date: toIsoDateStr(av.valid_until),
+      };
+      if (av.status === "UNAVAILABLE") {
+        const list = teacherUnavailable.get(k) || [];
+        list.push(range);
+        teacherUnavailable.set(k, list);
+      }
+      if (av.status === "UNDESIRED") {
+        const list = teacherUndesired.get(k) || [];
+        list.push(range);
+        teacherUndesired.set(k, list);
+      }
     }
 
     const roomUnavailable = new Set<string>(
@@ -594,7 +675,8 @@ export class ScheduleSolver {
 
     const isSlotForbidden = (unit: SolverLessonUnit, slot: SolverSlot): boolean => {
       for (const tId of unit.teacher_ids) {
-        if (teacherUnavailable.has(`${tId}_${slot.period_id}_${slot.day}`)) {
+        const unavRanges = teacherUnavailable.get(`${tId}_${slot.period_id}_${slot.day}`);
+        if (unavRanges && unavRanges.some((r) => doDateRangesOverlap(unit.date_range, r))) {
           return true;
         }
       }
@@ -619,7 +701,8 @@ export class ScheduleSolver {
     const getSlotPenalty = (unit: SolverLessonUnit, slot: SolverSlot): number => {
       let pen = 0;
       for (const tId of unit.teacher_ids) {
-        if (teacherUndesired.has(`${tId}_${slot.period_id}_${slot.day}`)) {
+        const undRanges = teacherUndesired.get(`${tId}_${slot.period_id}_${slot.day}`);
+        if (undRanges && undRanges.some((r) => doDateRangesOverlap(unit.date_range, r))) {
           pen += 1;
         }
       }
@@ -668,6 +751,7 @@ export class ScheduleSolver {
       getSlotPenalty,
       teacherMap,
       roomCapacity,
+      groupRanges,
     });
 
     const entries: GeneratedEntryOutput[] = [];
@@ -754,6 +838,7 @@ export class ScheduleSolver {
     getSlotPenalty,
     teacherMap,
     roomCapacity,
+    groupRanges,
   }: {
     units: SolverLessonUnit[];
     slots: SolverSlot[];
@@ -772,41 +857,54 @@ export class ScheduleSolver {
       }
     >;
     roomCapacity: Map<number, number>;
+    groupRanges: Map<number, DateRange>;
   }): Map<string, string> {
     // Group units by lesson so DUPLAS / SEQUENCIA pairs can be scheduled together cleanly
     const assignment = new Map<string, string>();
 
-    const teacherSlotUsed = new Set<string>(); // `${teacher_id}_${slot.key}`
+    const teacherSlotUsed = new Map<string, SolverLessonUnit[]>(); // `${teacher_id}_${slot.key}`
     const classSlotUsed = new Set<string>(); // `${class_id}_${slot.key}`
-    const roomSlotLessons = new Map<string, Set<number>>(); // `${room_id}_${slot.key}` -> Set<lesson_id>
+    const roomSlotLessons = new Map<string, Map<number, SolverLessonUnit>>(); // `${room_id}_${slot.key}` -> Map<lesson_id, unit>
 
     const lessonDayCount = new Map<string, number>(); // `${lesson_id}_${day}` -> count
     const lessonDayPositions = new Map<string, number[]>(); // `${lesson_id}_${day}` -> slot.position[]
     const lessonDaysUsed = new Map<number, Set<string>>(); // lesson_id -> Set<day>
 
-    const teacherDayCount = new Map<string, number>(); // `${teacher_id}_${day}`
-    const teacherLevelDayCount = new Map<string, number>(); // `${teacher_id}_${level}_${day}`
-    const teacherGroupDayCount = new Map<string, number>(); // `${teacher_id}_${group}_${day}`
-    const teacherDayPositions = new Map<string, number[]>(); // `${teacher_id}_${day}` -> positions
+    const teacherDayUnits = new Map<string, { unit: SolverLessonUnit; position: number }[]>(); // `${teacher_id}_${day}`
 
     const canAssign = (
       unit: SolverLessonUnit,
       slot: SolverSlot,
       strictGrouping: boolean
     ): boolean => {
-      // 1. Resource conflicts
+      // 1. Resource conflicts (date-overlap aware across course durations)
       for (const tId of unit.teacher_ids) {
-        if (teacherSlotUsed.has(`${tId}_${slot.key}`)) return false;
+        const usedUnits = teacherSlotUsed.get(`${tId}_${slot.key}`) || [];
+        if (
+          usedUnits.some((u) =>
+            doGroupListsOverlap(unit.class_groups, u.class_groups, groupRanges)
+          )
+        ) {
+          return false;
+        }
       }
       for (const cId of unit.class_ids) {
         if (classSlotUsed.has(`${cId}_${slot.key}`)) return false;
       }
       if (unit.room_id) {
         const rKey = `${unit.room_id}_${slot.key}`;
-        const set = roomSlotLessons.get(rKey);
+        const lessonMap = roomSlotLessons.get(rKey);
         const cap = roomCapacity.get(unit.room_id) ?? 1;
-        if (set && !set.has(unit.lesson_id) && set.size >= cap) {
-          return false;
+        if (lessonMap && !lessonMap.has(unit.lesson_id)) {
+          let overlappingCount = 0;
+          for (const otherUnit of lessonMap.values()) {
+            if (doGroupListsOverlap(unit.class_groups, otherUnit.class_groups, groupRanges)) {
+              overlappingCount++;
+            }
+          }
+          if (overlappingCount >= cap) {
+            return false;
+          }
         }
       }
 
@@ -858,24 +956,36 @@ export class ScheduleSolver {
         }
       }
 
-      // 5. Teacher limits (max_lessons_day, max_lessons_level, max_lessons_group)
+      // 5. Teacher limits (max_lessons_day, max_lessons_level, max_lessons_group) - duration-overlap aware
       for (const tId of unit.teacher_ids) {
         const teacher = teacherMap.get(tId);
         if (!teacher) continue;
         const tdKey = `${tId}_${slot.day}`;
-        const tDayLoad = teacherDayCount.get(tdKey) || 0;
-        if (tDayLoad + 1 > teacher.max_lessons_day) return false;
+        const dayItems = teacherDayUnits.get(tdKey) || [];
+
+        if (
+          maxSimultaneousInRange(
+            unit.date_range,
+            dayItems.map((d) => d.unit.date_range)
+          ) > teacher.max_lessons_day
+        ) {
+          return false;
+        }
 
         for (const lvl of unit.class_levels) {
-          const tlKey = `${tId}_${lvl}_${slot.day}`;
-          if ((teacherLevelDayCount.get(tlKey) || 0) + 1 > teacher.max_lessons_level) {
+          const lvlRanges = dayItems
+            .filter((d) => d.unit.class_levels.includes(lvl))
+            .map((d) => d.unit.date_range);
+          if (maxSimultaneousInRange(unit.date_range, lvlRanges) > teacher.max_lessons_level) {
             return false;
           }
         }
 
         for (const grp of unit.class_groups) {
-          const tgKey = `${tId}_${grp}_${slot.day}`;
-          if ((teacherGroupDayCount.get(tgKey) || 0) + 1 > teacher.max_lessons_group) {
+          const grpRanges = dayItems
+            .filter((d) => d.unit.class_groups.includes(grp))
+            .map((d) => d.unit.date_range);
+          if (maxSimultaneousInRange(unit.date_range, grpRanges) > teacher.max_lessons_group) {
             return false;
           }
         }
@@ -887,30 +997,24 @@ export class ScheduleSolver {
     const doAssign = (unit: SolverLessonUnit, slot: SolverSlot) => {
       assignment.set(unit.key, slot.key);
       for (const tId of unit.teacher_ids) {
-        teacherSlotUsed.add(`${tId}_${slot.key}`);
-        const tdKey = `${tId}_${slot.day}`;
-        teacherDayCount.set(tdKey, (teacherDayCount.get(tdKey) || 0) + 1);
-        const posArr = teacherDayPositions.get(tdKey) || [];
-        posArr.push(slot.position);
-        teacherDayPositions.set(tdKey, posArr);
+        const tsKey = `${tId}_${slot.key}`;
+        const tsList = teacherSlotUsed.get(tsKey) || [];
+        tsList.push(unit);
+        teacherSlotUsed.set(tsKey, tsList);
 
-        for (const lvl of unit.class_levels) {
-          const tlKey = `${tId}_${lvl}_${slot.day}`;
-          teacherLevelDayCount.set(tlKey, (teacherLevelDayCount.get(tlKey) || 0) + 1);
-        }
-        for (const grp of unit.class_groups) {
-          const tgKey = `${tId}_${grp}_${slot.day}`;
-          teacherGroupDayCount.set(tgKey, (teacherGroupDayCount.get(tgKey) || 0) + 1);
-        }
+        const tdKey = `${tId}_${slot.day}`;
+        const dayList = teacherDayUnits.get(tdKey) || [];
+        dayList.push({ unit, position: slot.position });
+        teacherDayUnits.set(tdKey, dayList);
       }
       for (const cId of unit.class_ids) {
         classSlotUsed.add(`${cId}_${slot.key}`);
       }
       if (unit.room_id) {
         const rKey = `${unit.room_id}_${slot.key}`;
-        const set = roomSlotLessons.get(rKey) || new Set<number>();
-        set.add(unit.lesson_id);
-        roomSlotLessons.set(rKey, set);
+        const map = roomSlotLessons.get(rKey) || new Map<number, SolverLessonUnit>();
+        map.set(unit.lesson_id, unit);
+        roomSlotLessons.set(rKey, map);
       }
 
       const lDayKey = `${unit.lesson_id}_${slot.day}`;
@@ -936,12 +1040,15 @@ export class ScheduleSolver {
         }
       }
 
-      // Soft constraints for teachers: reduce_days & reduce_windows & min_lessons_day
+      // Soft constraints for teachers: reduce_days & reduce_windows & min_lessons_day (within overlapping durations)
       for (const tId of unit.teacher_ids) {
         const teacher = teacherMap.get(tId);
         if (!teacher) continue;
         const tdKey = `${tId}_${slot.day}`;
-        const currentLoad = teacherDayCount.get(tdKey) || 0;
+        const overlappingItems = (teacherDayUnits.get(tdKey) || []).filter((d) =>
+          doGroupListsOverlap(unit.class_groups, d.unit.class_groups, groupRanges)
+        );
+        const currentLoad = overlappingItems.length;
 
         if (teacher.reduce_days) {
           if (currentLoad === 0) score += 25; // Penalty for starting a new day
@@ -953,7 +1060,7 @@ export class ScheduleSolver {
         }
 
         if (teacher.reduce_windows) {
-          const posArr = teacherDayPositions.get(tdKey) || [];
+          const posArr = overlappingItems.map((d) => d.position);
           if (posArr.length > 0) {
             const minP = Math.min(...posArr, slot.position);
             const maxP = Math.max(...posArr, slot.position);
@@ -1030,7 +1137,7 @@ export class ScheduleSolver {
     units: SolverLessonUnit[];
     slots: SolverSlot[];
     isSlotForbidden: (u: SolverLessonUnit, s: SolverSlot) => boolean;
-    teacherUnavailable: Set<string>;
+    teacherUnavailable: Map<string, DateRange[]>;
     classUnavailable: Set<string>;
     classShifts: Map<number, string[]>;
     teacherMap: Map<
@@ -1103,27 +1210,51 @@ export class ScheduleSolver {
       }
 
       const capacity = teacher.max_lessons_day * days.size;
-      if (teacherUnits.length > capacity) {
+      // Compute peak simultaneous weekly load across overlapping course durations
+      let peakWeeklyLoad = 0;
+      for (const u of teacherUnits) {
+        const simultaneousCount = maxSimultaneousInRange(
+          u.date_range,
+          teacherUnits.filter((other) => other !== u).map((other) => other.date_range)
+        );
+        if (simultaneousCount > peakWeeklyLoad) {
+          peakWeeklyLoad = simultaneousCount;
+        }
+      }
+      if (peakWeeklyLoad > capacity) {
         errors.push({
           code: "TEACHER_DAILY_LIMIT_TOO_LOW",
           teacher_id: teacherId,
           title: `Carga horária excessiva para ${teacher.name}`,
-          message: `O professor ${teacher.name} possui ${teacherUnits.length} aulas na semana, excedendo a capacidade do limite diário (${capacity}).`,
+          message: `O professor ${teacher.name} possui ${peakWeeklyLoad} aulas simultâneas na semana, excedendo a capacidade do limite diário (${capacity}).`,
         });
       }
 
-      const unavailableCount = slots.filter((s) =>
-        teacherUnavailable.has(`${teacherId}_${s.period_id}_${s.day}`)
-      ).length;
-      const availableCount = slots.length - unavailableCount;
+      // Check availability against peak simultaneous load per distinct course date range
+      const checkedRangeKeys = new Set<string>();
+      for (const u of teacherUnits) {
+        const rKey = `${u.date_range.start_date || ""}_${u.date_range.end_date || ""}`;
+        if (checkedRangeKeys.has(rKey)) continue;
+        checkedRangeKeys.add(rKey);
 
-      if (teacherUnits.length > availableCount) {
-        errors.push({
-          code: "TEACHER_INSUFFICIENT_AVAILABILITY",
-          teacher_id: teacherId,
-          title: `Disponibilidade de ${teacher.name} insuficiente`,
-          message: `O professor ${teacher.name} precisa lecionar ${teacherUnits.length} tempos na semana, mas possui apenas ${availableCount} horários disponíveis na sua grade.`,
-        });
+        const simultaneousUnitsCount = teacherUnits.filter((other) =>
+          doDateRangesOverlap(u.date_range, other.date_range)
+        ).length;
+        const unavailableCount = slots.filter((s) => {
+          const ranges = teacherUnavailable.get(`${teacherId}_${s.period_id}_${s.day}`);
+          return ranges && ranges.some((r) => doDateRangesOverlap(u.date_range, r));
+        }).length;
+        const availableCount = slots.length - unavailableCount;
+
+        if (simultaneousUnitsCount > availableCount) {
+          errors.push({
+            code: "TEACHER_INSUFFICIENT_AVAILABILITY",
+            teacher_id: teacherId,
+            title: `Disponibilidade de ${teacher.name} insuficiente`,
+            message: `O professor ${teacher.name} precisa lecionar ${simultaneousUnitsCount} tempos simultâneos na semana, mas possui apenas ${availableCount} horários disponíveis na sua grade.`,
+          });
+          break;
+        }
       }
     }
 

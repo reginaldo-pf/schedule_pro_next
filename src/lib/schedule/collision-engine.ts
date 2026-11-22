@@ -98,6 +98,8 @@ export interface TeacherAvailabilityEntry {
   reason?: string;
   occupied_lesson_id?: number;
   occupied_class_name?: string;
+  valid_from?: string | null;
+  valid_until?: string | null;
 }
 
 export interface RoomAvailabilityEntry {
