@@ -66,6 +66,7 @@ export function ScheduleBuilderClient({
     status?: string;
     start_date?: string | null;
     end_date?: string | null;
+    can_edit?: boolean;
   }[];
   classes: BuilderClass[];
   teachers: BuilderTeacher[];
@@ -339,6 +340,16 @@ export function ScheduleBuilderClient({
 
   const unscheduledUnits = classUnits.filter((u) => !u.assigned);
   const selectedClassObj = classes.find((c) => c.id === selectedClassId);
+  const editableGroupIds = useMemo(
+    () => new Set(groups.filter((g) => g.can_edit !== false).map((g) => g.id)),
+    [groups]
+  );
+  const editableClasses = useMemo(
+    () => classes.filter((c) => editableGroupIds.has(c.group_id)),
+    [classes, editableGroupIds]
+  );
+  const canEditSelectedClass =
+    !selectedClassObj || editableGroupIds.has(selectedClassObj.group_id);
 
   const visiblePeriods = periods.filter((p) => {
     if (
@@ -670,7 +681,7 @@ export function ScheduleBuilderClient({
               <button
                 type="button"
                 className="btn btn-outline-danger btn-sm d-flex align-items-center gap-2 px-3 py-2"
-                disabled={!selectedClassId}
+                disabled={!selectedClassId || !canEditSelectedClass}
                 onClick={handleClearSchedule}
               >
                 <i className="bi bi-trash" />
@@ -680,7 +691,7 @@ export function ScheduleBuilderClient({
               <button
                 type="button"
                 className="btn btn-outline-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold"
-                disabled={!selectedClassId}
+                disabled={!selectedClassId || !canEditSelectedClass}
                 onClick={() => saveCurrentClassSchedule(classUnits)}
               >
                 <i className="bi bi-save" />
@@ -691,7 +702,7 @@ export function ScheduleBuilderClient({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold"
-                  disabled={!selectedClassId || !subscriptionValid}
+                  disabled={!selectedClassId || !subscriptionValid || !canEditSelectedClass}
                   onClick={handleGenerateIndividual}
                 >
                   <i className="bi bi-magic" />
@@ -700,9 +711,9 @@ export function ScheduleBuilderClient({
                 <button
                   type="button"
                   className="btn btn-dark btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold"
-                  disabled={!subscriptionValid}
+                  disabled={!subscriptionValid || editableClasses.length === 0}
                   onClick={() => {
-                    setBatchClassIds(classes.map((c) => c.id));
+                    setBatchClassIds(editableClasses.map((c) => c.id));
                     setBatchModalOpen(true);
                   }}
                 >
@@ -714,6 +725,16 @@ export function ScheduleBuilderClient({
           </div>
         </div>
       </div>
+
+      {selectedClassObj && !canEditSelectedClass && (
+        <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2 mb-4">
+          <i className="bi bi-lock-fill fs-5" />
+          <div>
+            <strong>Acesso somente leitura:</strong> você só pode manipular o
+            curso ao qual está atribuído.
+          </div>
+        </div>
+      )}
 
       <div className="row g-4">
         {/* Sidebar: Unscheduled Lessons + Pedagogical Warnings + Solver Conflicts */}
@@ -1198,7 +1219,7 @@ export function ScheduleBuilderClient({
                         type="button"
                         className="btn btn-outline-secondary"
                         onClick={() =>
-                          setBatchClassIds(classes.map((c) => c.id))
+                          setBatchClassIds(editableClasses.map((c) => c.id))
                         }
                       >
                         Marcar Todas
@@ -1217,8 +1238,10 @@ export function ScheduleBuilderClient({
                     className="overflow-auto pe-1"
                     style={{ maxHeight: "38vh" }}
                   >
-                    {groups.map((grp) => {
-                      const grpClasses = classes.filter(
+                    {groups
+                      .filter((grp) => grp.can_edit !== false)
+                      .map((grp) => {
+                      const grpClasses = editableClasses.filter(
                         (c) => c.group_id === grp.id
                       );
                       if (grpClasses.length === 0) return null;

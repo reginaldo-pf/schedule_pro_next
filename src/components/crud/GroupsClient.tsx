@@ -30,6 +30,7 @@ interface GroupItem {
   owner_name: string;
   can_transfer_ownership: boolean;
   can_revoke_ownership: boolean;
+  can_edit: boolean;
   can_delete_inactive: boolean;
   classes_count: number;
   subjects_count: number;
@@ -355,6 +356,17 @@ export function GroupsClient({
         onAction={openCreate}
       />
 
+      {groups.some((g) => !g.can_edit) && (
+        <div className="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-2 mb-3">
+          <i className="bi bi-lock-fill fs-5" />
+          <div className="small">
+            <strong>Permissão por curso:</strong> você só pode manipular o curso
+            ao qual está atribuído. Cursos de outros coordenadores ou sem posse
+            estão em modo somente leitura.
+          </div>
+        </div>
+      )}
+
       <div className="card border-0 shadow-sm">
         <div className="card-header bg-white border-bottom py-3 d-flex flex-wrap gap-2 justify-content-between align-items-center">
           <div className="d-flex flex-wrap gap-2 align-items-center">
@@ -470,6 +482,15 @@ export function GroupsClient({
                         </span>
                       </td>
                       <td className="text-end pe-4 text-nowrap">
+                        {!g.can_edit ? (
+                          <span
+                            className="badge bg-light text-muted border"
+                            title="Você só pode manipular o curso ao qual está atribuído"
+                          >
+                            <i className="bi bi-lock me-1" />
+                            Somente leitura
+                          </span>
+                        ) : (
                         <div className="btn-group btn-group-sm">
                           {st !== "PUBLISHED" && (
                             <button
@@ -534,6 +555,7 @@ export function GroupsClient({
                             </button>
                           )}
                         </div>
+                        )}
                       </td>
                     </tr>
                   );

@@ -6,6 +6,7 @@ import {
   ScheduleValidationService,
   type GeneratedEntryOutput,
 } from "@/lib/schedule/solver";
+import { AccessControlService } from "@/lib/services/access-control";
 
 export async function POST(request: Request) {
   try {
@@ -80,6 +81,41 @@ export async function POST(request: Request) {
           day_of_week: dayOfWeek,
           is_locked: isLocked,
         });
+      }
+    }
+
+    // Validate ownership of all affected classes/lessons for non-admin coordinators
+    if (!AccessControlService.isProjectAdmin(user, project)) {
+      const targetClassIds = Array.from(
+        new Set([
+          ...(classId ? [BigInt(classId)] : []),
+          ...entriesToCreate.map((e) => BigInt(e.school_class_id)),
+        ])
+      );
+      const affectedClasses = targetClassIds.length > 0
+        ? await prisma.classes_schoolclass.findMany({
+            where: { id: { in: targetClassIds }, project_id: project.id },
+            select: { group_id: true },
+          })
+        : [];
+      const affectedGroupIds = [
+        ...affectedClasses.map((c) => c.group_id),
+        ...entriesToCreate
+          .map((e) => lessonMap.get(e.lesson_id)?.subjects_subject?.group_id)
+          .filter((gId): gId is bigint => Boolean(gId)),
+      ];
+      if (
+        affectedGroupIds.length === 0 ||
+        !(await AccessControlService.canManageGroupIds(user, project, affectedGroupIds))
+      ) {
+        return NextResponse.json(
+          {
+            ok: false,
+            message:
+              "Você só pode manipular o curso ao qual está atribuído (edição de grade bloqueada).",
+          },
+          { status: 403 }
+        );
       }
     }
 

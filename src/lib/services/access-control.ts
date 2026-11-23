@@ -10,6 +10,7 @@ export interface SubscriptionInfo {
     slug: string;
     maxClasses: number;
     maxProjects: number;
+    maxGroups: number;
     isTrial: boolean;
     price: number;
   };
@@ -27,6 +28,7 @@ export class PlanService {
           name: "Trial",
           max_classes: 1,
           max_projects: 1,
+          max_groups: 1,
           duration_days: 30,
           is_trial: true,
           price: 0,
@@ -73,6 +75,7 @@ export class PlanService {
         slug: string;
         max_classes: number;
         max_projects: number;
+        max_groups: number;
         is_trial: boolean;
         price: unknown;
       };
@@ -91,6 +94,7 @@ export class PlanService {
           slug: "admin",
           maxClasses: 999999,
           maxProjects: 999999,
+          maxGroups: 999999,
           isTrial: false,
           price: 0,
         },
@@ -120,6 +124,7 @@ export class PlanService {
         slug: sub.plans_plan.slug,
         maxClasses: sub.plans_plan.max_classes,
         maxProjects: sub.plans_plan.max_projects,
+        maxGroups: sub.plans_plan.max_groups,
         isTrial: sub.plans_plan.is_trial,
         price: Number(sub.plans_plan.price),
       },
@@ -160,6 +165,20 @@ export class PlanService {
     return count < sub.plan.maxProjects;
   }
 
+  static async canCreateGroup(user: Parameters<typeof PlanService.getSubscription>[0]): Promise<boolean> {
+    if (!user) return false;
+    if (user.is_superuser || user.is_staff) return true;
+    const sub = await this.getSubscription(user);
+    if (!sub || !sub.isValid) return false;
+    const count = await prisma.groups_group.count({
+      where: {
+        owner_id: user.id,
+        status: { not: "INACTIVE" },
+      },
+    });
+    return count < sub.plan.maxGroups;
+  }
+
   static async canInviteToProject(user: Parameters<typeof PlanService.getSubscription>[0]): Promise<boolean> {
     if (!user) return false;
     if (user.is_superuser || user.is_staff) return true;
@@ -196,5 +215,39 @@ export class AccessControlService {
     project: { owner_id: bigint }
   ): boolean {
     return user.is_superuser || user.is_staff || project.owner_id === user.id;
+  }
+
+  static isProjectAdmin(
+    user: { id: bigint; is_superuser: boolean },
+    project: { owner_id: bigint }
+  ): boolean {
+    return user.is_superuser || project.owner_id === user.id;
+  }
+
+  static canManageGroup(
+    user: { id: bigint; is_superuser: boolean },
+    project: { owner_id: bigint },
+    group: { owner_id: bigint | null }
+  ): boolean {
+    return (
+      this.isProjectAdmin(user, project) ||
+      (group.owner_id !== null && group.owner_id === user.id)
+    );
+  }
+
+  static async canManageGroupIds(
+    user: { id: bigint; is_superuser: boolean },
+    project: { id: bigint; owner_id: bigint },
+    groupIds: bigint[]
+  ): Promise<boolean> {
+    if (this.isProjectAdmin(user, project)) return true;
+    const uniqueIds = Array.from(new Set(groupIds));
+    if (uniqueIds.length === 0) return false;
+    const groups = await prisma.groups_group.findMany({
+      where: { id: { in: uniqueIds }, project_id: project.id },
+      select: { id: true, owner_id: true },
+    });
+    if (groups.length !== uniqueIds.length) return false;
+    return groups.every((g) => this.canManageGroup(user, project, g));
   }
 }

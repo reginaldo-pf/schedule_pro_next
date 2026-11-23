@@ -12,6 +12,7 @@ export default async function ScheduleBuilderPage({
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
   const {
+    user,
     activeProject,
     shellUser,
     shellProject,
@@ -229,6 +230,10 @@ export default async function ScheduleBuilderPage({
           status: g.status || "PUBLISHED",
           start_date: toIsoDateStr(g.start_date),
           end_date: toIsoDateStr(g.end_date),
+          can_edit:
+            user.is_superuser ||
+            project.owner_id === user.id ||
+            (g.owner_id !== null && g.owner_id === user.id),
         }))}
         classes={serializedClasses}
         teachers={serializedTeachers}

@@ -7,7 +7,7 @@ import {
   generateUserConfirmationToken,
   resolveSiteUrl,
 } from "@/lib/auth";
-import { PlanService } from "@/lib/services/access-control";
+import { PlanService, AccessControlService } from "@/lib/services/access-control";
 import { sendUserConfirmationEmail } from "@/lib/email";
 
 export async function POST(
@@ -34,6 +34,7 @@ export async function POST(
           slug: (body.slug || "").trim().toLowerCase(),
           max_classes: Number(body.max_classes ?? 1),
           max_projects: Number(body.max_projects ?? 1),
+          max_groups: Number(body.max_groups ?? 1),
           duration_days: Number(body.duration_days ?? 30),
           is_trial: Boolean(body.is_trial),
           price: Number(body.price ?? 0),
@@ -202,6 +203,20 @@ export async function POST(
             ? body.status
             : "PUBLISHED";
 
+        if (!(await PlanService.canCreateGroup(user))) {
+          const sub = await PlanService.getSubscription(user);
+          return NextResponse.json(
+            {
+              ok: false,
+              message:
+                sub && sub.isValid
+                  ? `Seu plano (${sub.plan.name}) permite cadastrar no máximo ${sub.plan.maxGroups} grupo(s)/curso(s). Faça upgrade ou contate o administrador.`
+                  : "Você precisa de uma assinatura ativa para cadastrar grupos/cursos.",
+            },
+            { status: 403 }
+          );
+        }
+
         const created = await prisma.groups_group.create({
           data: {
             project_id: project.id,
@@ -338,6 +353,15 @@ export async function POST(
             { status: 400 }
           );
         }
+        if (!(await AccessControlService.canManageGroupIds(user, project, [BigInt(groupId)]))) {
+          return NextResponse.json(
+            {
+              ok: false,
+              message: "Você só pode manipular o curso ao qual está atribuído.",
+            },
+            { status: 403 }
+          );
+        }
         const created = await prisma.subjects_subject.create({
           data: {
             project_id: project.id,
@@ -376,6 +400,15 @@ export async function POST(
           return NextResponse.json(
             { ok: false, message: "Nome e curso/grupo da turma são obrigatórios." },
             { status: 400 }
+          );
+        }
+        if (!(await AccessControlService.canManageGroupIds(user, project, [BigInt(groupId)]))) {
+          return NextResponse.json(
+            {
+              ok: false,
+              message: "Você só pode manipular o curso ao qual está atribuído.",
+            },
+            { status: 403 }
           );
         }
         const shifts: string[] = Array.isArray(body.shifts) ? body.shifts : [];
@@ -420,12 +453,33 @@ export async function POST(
           );
         }
 
+        const subj = await prisma.subjects_subject.findFirst({
+          where: { id: BigInt(subjectId), project_id: project.id },
+        });
+        if (!subj) {
+          return NextResponse.json(
+            { ok: false, message: "Disciplina não encontrada." },
+            { status: 404 }
+          );
+        }
+        const targetClasses = await prisma.classes_schoolclass.findMany({
+          where: { id: { in: classIds.map((cId) => BigInt(cId)) }, project_id: project.id },
+          select: { group_id: true },
+        });
+        const lessonGroupIds = [subj.group_id, ...targetClasses.map((c) => c.group_id)];
+        if (!(await AccessControlService.canManageGroupIds(user, project, lessonGroupIds))) {
+          return NextResponse.json(
+            {
+              ok: false,
+              message: "Você só pode manipular o curso ao qual está atribuído.",
+            },
+            { status: 403 }
+          );
+        }
+
         let roomId = body.room_id ? BigInt(body.room_id) : null;
-        if (!roomId) {
-          const subj = await prisma.subjects_subject.findUnique({
-            where: { id: BigInt(subjectId) },
-          });
-          if (subj?.room_id) roomId = subj.room_id;
+        if (!roomId && subj.room_id) {
+          roomId = subj.room_id;
         }
 
         const created = await prisma.lessons_lesson.create({
@@ -503,6 +557,7 @@ export async function PUT(
           slug: (body.slug || "").trim().toLowerCase(),
           max_classes: Number(body.max_classes ?? 1),
           max_projects: Number(body.max_projects ?? 1),
+          max_groups: Number(body.max_groups ?? 1),
           duration_days: Number(body.duration_days ?? 30),
           is_trial: Boolean(body.is_trial),
           price: Number(body.price ?? 0),
@@ -662,6 +717,20 @@ export async function PUT(
           );
         }
 
+        const existingGroup = await prisma.groups_group.findFirst({
+          where: { id, project_id: project.id },
+          select: { id: true, owner_id: true },
+        });
+        if (!existingGroup) {
+          return NextResponse.json({ ok: false, message: "Curso não encontrado." }, { status: 404 });
+        }
+        if (!AccessControlService.canManageGroup(user, project, existingGroup)) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         const updated = await prisma.groups_group.update({
           where: { id },
           data: {
@@ -755,6 +824,25 @@ export async function PUT(
       }
 
       case "subjects": {
+        const existingSubject = await prisma.subjects_subject.findFirst({
+          where: { id, project_id: project.id },
+          select: { id: true, group_id: true },
+        });
+        if (!existingSubject) {
+          return NextResponse.json({ ok: false, message: "Disciplina não encontrada." }, { status: 404 });
+        }
+        if (
+          !(await AccessControlService.canManageGroupIds(user, project, [
+            existingSubject.group_id,
+            BigInt(body.group_id),
+          ]))
+        ) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         const updated = await prisma.subjects_subject.update({
           where: { id },
           data: {
@@ -775,6 +863,25 @@ export async function PUT(
       }
 
       case "classes": {
+        const existingClass = await prisma.classes_schoolclass.findFirst({
+          where: { id, project_id: project.id },
+          select: { id: true, group_id: true },
+        });
+        if (!existingClass) {
+          return NextResponse.json({ ok: false, message: "Turma não encontrada." }, { status: 404 });
+        }
+        if (
+          !(await AccessControlService.canManageGroupIds(user, project, [
+            existingClass.group_id,
+            BigInt(body.group_id),
+          ]))
+        ) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         const shifts: string[] = Array.isArray(body.shifts) ? body.shifts : [];
         const updated = await prisma.classes_schoolclass.update({
           where: { id },
@@ -804,6 +911,41 @@ export async function PUT(
         const teacherIds: number[] = Array.isArray(body.teacher_ids)
           ? body.teacher_ids.map(Number).filter(Boolean)
           : [];
+
+        const existingLesson = await prisma.lessons_lesson.findFirst({
+          where: { id, project_id: project.id },
+          include: {
+            subjects_subject: { select: { group_id: true } },
+            lessons_lesson_classes: {
+              include: { classes_schoolclass: { select: { group_id: true } } },
+            },
+          },
+        });
+        if (!existingLesson) {
+          return NextResponse.json({ ok: false, message: "Aula não encontrada." }, { status: 404 });
+        }
+        const [newSubj, newClasses] = await Promise.all([
+          prisma.subjects_subject.findFirst({
+            where: { id: BigInt(subjectId), project_id: project.id },
+            select: { group_id: true },
+          }),
+          prisma.classes_schoolclass.findMany({
+            where: { id: { in: classIds.map((cId) => BigInt(cId)) }, project_id: project.id },
+            select: { group_id: true },
+          }),
+        ]);
+        const lessonGroupIds = [
+          existingLesson.subjects_subject.group_id,
+          ...existingLesson.lessons_lesson_classes.map((lc) => lc.classes_schoolclass.group_id),
+          ...(newSubj ? [newSubj.group_id] : []),
+          ...newClasses.map((c) => c.group_id),
+        ];
+        if (!(await AccessControlService.canManageGroupIds(user, project, lessonGroupIds))) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
 
         await prisma.$transaction([
           prisma.lessons_lesson_classes.deleteMany({ where: { lesson_id: id } }),
@@ -945,7 +1087,34 @@ export async function DELETE(
         });
       }
 
+      default:
+        break;
+    }
+
+    const project = await getActiveProject(user);
+    if (!project) {
+      return NextResponse.json(
+        { ok: false, message: "Selecione um projeto ativo." },
+        { status: 400 }
+      );
+    }
+
+    switch (module) {
       case "groups": {
+        const existingGroup = await prisma.groups_group.findFirst({
+          where: { id, project_id: project.id },
+          select: { id: true, owner_id: true },
+        });
+        if (!existingGroup) {
+          return NextResponse.json({ ok: false, message: "Curso não encontrado." }, { status: 404 });
+        }
+        if (!AccessControlService.canManageGroup(user, project, existingGroup)) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         await prisma.$transaction([
           prisma.solver_generatedscheduleentry.deleteMany({
             where: { classes_schoolclass: { group_id: id } },
@@ -1034,6 +1203,20 @@ export async function DELETE(
       }
 
       case "subjects": {
+        const existingSubject = await prisma.subjects_subject.findFirst({
+          where: { id, project_id: project.id },
+          select: { id: true, group_id: true },
+        });
+        if (!existingSubject) {
+          return NextResponse.json({ ok: false, message: "Disciplina não encontrada." }, { status: 404 });
+        }
+        if (!(await AccessControlService.canManageGroupIds(user, project, [existingSubject.group_id]))) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         await prisma.$transaction([
           prisma.solver_generatedscheduleentry.deleteMany({
             where: { lessons_lesson: { subject_id: id } },
@@ -1054,6 +1237,20 @@ export async function DELETE(
       }
 
       case "classes": {
+        const existingClass = await prisma.classes_schoolclass.findFirst({
+          where: { id, project_id: project.id },
+          select: { id: true, group_id: true },
+        });
+        if (!existingClass) {
+          return NextResponse.json({ ok: false, message: "Turma não encontrada." }, { status: 404 });
+        }
+        if (!(await AccessControlService.canManageGroupIds(user, project, [existingClass.group_id]))) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         await prisma.$transaction([
           prisma.availability_schoolclassavailability.deleteMany({
             where: { school_class_id: id },
@@ -1073,6 +1270,29 @@ export async function DELETE(
       }
 
       case "lessons": {
+        const existingLesson = await prisma.lessons_lesson.findFirst({
+          where: { id, project_id: project.id },
+          include: {
+            subjects_subject: { select: { group_id: true } },
+            lessons_lesson_classes: {
+              include: { classes_schoolclass: { select: { group_id: true } } },
+            },
+          },
+        });
+        if (!existingLesson) {
+          return NextResponse.json({ ok: false, message: "Aula não encontrada." }, { status: 404 });
+        }
+        const lessonGroupIds = [
+          existingLesson.subjects_subject.group_id,
+          ...existingLesson.lessons_lesson_classes.map((lc) => lc.classes_schoolclass.group_id),
+        ];
+        if (!(await AccessControlService.canManageGroupIds(user, project, lessonGroupIds))) {
+          return NextResponse.json(
+            { ok: false, message: "Você só pode manipular o curso ao qual está atribuído." },
+            { status: 403 }
+          );
+        }
+
         await prisma.$transaction([
           prisma.solver_generatedscheduleentry.deleteMany({
             where: { lesson_id: id },

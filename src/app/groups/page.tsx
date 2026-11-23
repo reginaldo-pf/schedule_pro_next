@@ -119,6 +119,7 @@ export default async function GroupsPage() {
     owner_name: g.accounts_user ? formatUserLabel(g.accounts_user) : "",
     can_transfer_ownership: isAdmin || g.owner_id === user.id,
     can_revoke_ownership: isAdmin && g.owner_id !== null,
+    can_edit: isAdmin || g.owner_id === user.id,
     can_delete_inactive: isAdmin || g.owner_id === user.id,
     classes_count: g._count.classes_schoolclass,
     subjects_count: g._count.subjects_subject,

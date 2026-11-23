@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getActiveProject } from "@/lib/auth";
+import { AccessControlService } from "@/lib/services/access-control";
 
 export async function POST(
   _request: Request,
@@ -30,6 +31,16 @@ export async function POST(
       return NextResponse.json(
         { ok: false, message: "Curso/Período não encontrado." },
         { status: 404 }
+      );
+    }
+
+    if (!AccessControlService.canManageGroup(user, activeProject, targetGroup)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Você só pode manipular o curso ao qual está atribuído (publicação bloqueada).",
+        },
+        { status: 403 }
       );
     }
 

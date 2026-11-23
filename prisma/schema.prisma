@@ -362,6 +362,7 @@ model plans_plan {
   price              Decimal              @db.Decimal(10, 2)
   active             Boolean
   max_projects       Int
+  max_groups         Int                  @default(1)
   plans_subscription plans_subscription[]
 
   @@index([slug], map: "plans_plan_slug_ac82072e_like")

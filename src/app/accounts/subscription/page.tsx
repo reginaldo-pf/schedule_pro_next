@@ -65,6 +65,13 @@ export default async function SubscriptionPage() {
                       {user.is_superuser ? "Ilimitado" : sub.plan.maxProjects}
                     </strong>
                   </li>
+                  <li>
+                    <i className="bi bi-check-circle-fill text-success me-2" />
+                    Limite de Cursos / Grupos:{" "}
+                    <strong>
+                      {user.is_superuser ? "Ilimitado" : sub.plan.maxGroups}
+                    </strong>
+                  </li>
                   {sub.expiresAt && (
                     <li>
                       <i className="bi bi-calendar-event text-primary me-2" />

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getActiveProject } from "@/lib/auth";
 import { ACTIVE_RUN_STATUSES } from "@/lib/schedule/collision-engine";
+import { AccessControlService } from "@/lib/services/access-control";
 
 export async function POST(
   request: Request,
@@ -61,6 +62,16 @@ export async function POST(
       return NextResponse.json(
         { ok: false, message: "Curso/Grupo de origem não encontrado." },
         { status: 404 }
+      );
+    }
+
+    if (!AccessControlService.canManageGroup(user, activeProject, sourceGroup)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Você só pode manipular o curso ao qual está atribuído (cópia bloqueada).",
+        },
+        { status: 403 }
       );
     }
 
