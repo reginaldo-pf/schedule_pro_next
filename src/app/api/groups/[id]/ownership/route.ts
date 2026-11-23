@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getActiveProject } from "@/lib/auth";
+import { AccessControlService } from "@/lib/services/access-control";
 
 export async function POST(
   request: Request,
@@ -40,7 +41,7 @@ export async function POST(
       );
     }
 
-    const isAdmin = user.is_superuser || activeProject.owner_id === user.id;
+    const isAdmin = AccessControlService.isProjectAdmin(user, activeProject);
     const isCourseOwner =
       targetGroup.owner_id !== null && targetGroup.owner_id === user.id;
 
@@ -71,13 +72,23 @@ export async function POST(
           targetGroup.accounts_user.username
         : "Coordenador";
 
-      await prisma.groups_group.update({
-        where: { id: targetGroup.id },
-        data: {
-          owner_id: null,
-          updated_at: new Date(),
-        },
-      });
+      const now = new Date();
+      await prisma.$transaction([
+        prisma.groups_group.update({
+          where: { id: targetGroup.id },
+          data: {
+            owner_id: null,
+            updated_at: now,
+          },
+        }),
+        prisma.classes_schoolclass.updateMany({
+          where: { group_id: targetGroup.id },
+          data: {
+            responsible_id: null,
+            updated_at: now,
+          },
+        }),
+      ]);
 
       return NextResponse.json({
         ok: true,
@@ -152,13 +163,23 @@ export async function POST(
         );
       }
 
-      await prisma.groups_group.update({
-        where: { id: targetGroup.id },
-        data: {
-          owner_id: targetUser.id,
-          updated_at: new Date(),
-        },
-      });
+      const now = new Date();
+      await prisma.$transaction([
+        prisma.groups_group.update({
+          where: { id: targetGroup.id },
+          data: {
+            owner_id: targetUser.id,
+            updated_at: now,
+          },
+        }),
+        prisma.classes_schoolclass.updateMany({
+          where: { group_id: targetGroup.id },
+          data: {
+            responsible_id: targetUser.id,
+            updated_at: now,
+          },
+        }),
+      ]);
 
       const targetDisplayName =
         `${targetUser.first_name || ""} ${targetUser.last_name || ""}`.trim() ||

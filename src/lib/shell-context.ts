@@ -82,6 +82,7 @@ export async function requireShellContext(options?: {
         isValid: subInfo.isValid,
         plan: {
           name: subInfo.plan.name,
+          slug: subInfo.plan.slug,
           maxClasses: subInfo.plan.maxClasses,
           isTrial: subInfo.plan.isTrial,
         },

@@ -1,5 +1,6 @@
 import { requireShellContext } from "@/lib/shell-context";
 import { prisma } from "@/lib/prisma";
+import { AccessControlService } from "@/lib/services/access-control";
 import { AppShell } from "@/components/layout/AppShell";
 import { GroupsClient } from "@/components/crud/GroupsClient";
 
@@ -106,7 +107,7 @@ export default async function GroupsPage() {
     });
   }
 
-  const isAdmin = user.is_superuser || activeProject!.owner_id === user.id;
+  const isAdmin = AccessControlService.isProjectAdmin(user, activeProject!);
 
   const serialized = groups.map((g) => ({
     id: Number(g.id),

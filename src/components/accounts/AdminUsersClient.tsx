@@ -26,9 +26,11 @@ interface ManagedUser {
 export function AdminUsersClient({
   users,
   plans,
+  isSuperuser = true,
 }: {
   users: ManagedUser[];
   plans: { id: number; name: string }[];
+  isSuperuser?: boolean;
 }) {
   const router = useRouter();
   const { startLoading, stopLoading, showToast, confirmAction } = useUI();
@@ -528,20 +530,22 @@ export function AdminUsersClient({
                 Assinatura Ativa
               </label>
             </div>
-            <div className="form-check form-switch">
-              <input
-                type="checkbox"
-                className="form-check-input"
-                id="chk_superuser"
-                checked={form.is_superuser}
-                onChange={(e) =>
-                  setForm({ ...form, is_superuser: e.target.checked })
-                }
-              />
-              <label className="form-check-label" htmlFor="chk_superuser">
-                Superusuário (Admin)
-              </label>
-            </div>
+            {isSuperuser && (
+              <div className="form-check form-switch">
+                <input
+                  type="checkbox"
+                  className="form-check-input"
+                  id="chk_superuser"
+                  checked={form.is_superuser}
+                  onChange={(e) =>
+                    setForm({ ...form, is_superuser: e.target.checked })
+                  }
+                />
+                <label className="form-check-label" htmlFor="chk_superuser">
+                  Superusuário (Admin)
+                </label>
+              </div>
+            )}
           </div>
         </div>
       </CrudModal>

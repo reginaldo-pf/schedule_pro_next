@@ -1,5 +1,6 @@
 import { requireShellContext } from "@/lib/shell-context";
 import { prisma, formatTime } from "@/lib/prisma";
+import { AccessControlService } from "@/lib/services/access-control";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProjectsClient } from "@/components/projects/ProjectsClient";
 
@@ -64,7 +65,7 @@ export default async function ProjectsPage() {
     interclass_break_enabled: p.interclass_break_enabled,
     owner_id: Number(p.owner_id),
     owner_username: p.accounts_user.username,
-    is_owner: p.owner_id === user.id || user.is_superuser,
+    is_owner: AccessControlService.isProjectAdmin(user, p),
     classes_count: p._count.classes_schoolclass,
     teachers_count: p._count.teachers_teacher,
     lessons_count: p._count.lessons_lesson,

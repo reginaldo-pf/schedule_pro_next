@@ -49,7 +49,8 @@ export async function POST(
     }
 
     if (module === "users") {
-      if (!user.is_superuser) {
+      const isDirecao = PlanService.hasActiveDirecaoPlan(user);
+      if (!user.is_superuser && !isDirecao) {
         return NextResponse.json({ ok: false, message: "Sem permissão." }, { status: 403 });
       }
 
@@ -90,6 +91,25 @@ export async function POST(
         );
       }
 
+      let selectedPlan: Awaited<ReturnType<typeof prisma.plans_plan.findUnique>> = null;
+      if (body.plan_id) {
+        selectedPlan = await prisma.plans_plan.findUnique({
+          where: { id: BigInt(body.plan_id) },
+        });
+        if (!selectedPlan || !selectedPlan.active) {
+          return NextResponse.json(
+            { ok: false, message: "Plano selecionado é inválido ou inativo." },
+            { status: 400 }
+          );
+        }
+        if (!user.is_superuser && selectedPlan.slug === "direcao") {
+          return NextResponse.json(
+            { ok: false, message: "Apenas o administrador pode atribuir o plano Direção." },
+            { status: 403 }
+          );
+        }
+      }
+
       const passwordHash = rawPassword
         ? hashDjangoPassword(rawPassword)
         : "!pending_confirmation";
@@ -103,25 +123,23 @@ export async function POST(
           password: passwordHash,
           profile: body.profile || "coordinator",
           is_active: Boolean(body.is_active),
-          is_staff: Boolean(body.is_staff),
-          is_superuser: Boolean(body.is_superuser),
+          is_staff: user.is_superuser ? Boolean(body.is_staff) : false,
+          is_superuser: user.is_superuser ? Boolean(body.is_superuser) : false,
           date_joined: now,
           created_at: now,
           updated_at: now,
         },
       });
 
-      if (body.plan_id) {
-        const planId = BigInt(body.plan_id);
-        const planObj = await prisma.plans_plan.findUnique({ where: { id: planId } });
+      if (selectedPlan) {
         const expiresAt =
-          planObj && planObj.duration_days > 0
-            ? new Date(now.getTime() + planObj.duration_days * 24 * 60 * 60 * 1000)
+          selectedPlan.duration_days > 0
+            ? new Date(now.getTime() + selectedPlan.duration_days * 24 * 60 * 60 * 1000)
             : null;
         await prisma.plans_subscription.create({
           data: {
             user_id: createdUser.id,
-            plan_id: planId,
+            plan_id: selectedPlan.id,
             active: body.subscription_active !== false,
             starts_at: now,
             expires_at: expiresAt,
@@ -131,6 +149,32 @@ export async function POST(
         });
       } else {
         await PlanService.createTrialSubscription(createdUser.id);
+      }
+
+      if (!user.is_superuser) {
+        const activeProject = await getActiveProject(user);
+        if (activeProject) {
+          await prisma.schedules_projectparticipant.upsert({
+            where: {
+              project_id_user_id: {
+                project_id: activeProject.id,
+                user_id: createdUser.id,
+              },
+            },
+            create: {
+              project_id: activeProject.id,
+              user_id: createdUser.id,
+              role: "coordinator",
+              invited_at: now,
+              accepted_at: now,
+              active: true,
+            },
+            update: {
+              role: "coordinator",
+              active: true,
+            },
+          });
+        }
       }
 
       let confirmUrl: string | undefined;
@@ -203,7 +247,7 @@ export async function POST(
             ? body.status
             : "PUBLISHED";
 
-        if (!(await PlanService.canCreateGroup(user))) {
+        if (!(await PlanService.canCreateGroup(user, project.id))) {
           const sub = await PlanService.getSubscription(user);
           return NextResponse.json(
             {
@@ -572,8 +616,49 @@ export async function PUT(
     }
 
     if (module === "users") {
-      if (!user.is_superuser) {
+      const isDirecao = PlanService.hasActiveDirecaoPlan(user);
+      if (!user.is_superuser && !isDirecao) {
         return NextResponse.json({ ok: false, message: "Sem permissão." }, { status: 403 });
+      }
+
+      const targetUser = await prisma.accounts_user.findUnique({
+        where: { id },
+        select: { id: true, is_superuser: true, is_staff: true },
+      });
+      if (!targetUser) {
+        return NextResponse.json({ ok: false, message: "Usuário não encontrado." }, { status: 404 });
+      }
+      if (!user.is_superuser) {
+        if (targetUser.is_superuser) {
+          return NextResponse.json(
+            { ok: false, message: "Sem permissão para alterar um superusuário." },
+            { status: 403 }
+          );
+        }
+        if (targetUser.id !== user.id) {
+          const sharedProject = await prisma.schedules_project.findFirst({
+            where: {
+              AND: [
+                {
+                  OR: [
+                    { owner_id: user.id },
+                    { schedules_projectparticipant: { some: { user_id: user.id, active: true } } },
+                  ],
+                },
+                {
+                  schedules_projectparticipant: { some: { user_id: id } },
+                },
+              ],
+            },
+            select: { id: true },
+          });
+          if (!sharedProject) {
+            return NextResponse.json(
+              { ok: false, message: "Você só pode gerenciar usuários vinculados ao seu projeto." },
+              { status: 403 }
+            );
+          }
+        }
       }
 
       const username = (body.username || "").trim();
@@ -611,6 +696,25 @@ export async function PUT(
         );
       }
 
+      let selectedPlan: Awaited<ReturnType<typeof prisma.plans_plan.findUnique>> = null;
+      if (body.plan_id) {
+        selectedPlan = await prisma.plans_plan.findUnique({
+          where: { id: BigInt(body.plan_id) },
+        });
+        if (!selectedPlan || !selectedPlan.active) {
+          return NextResponse.json(
+            { ok: false, message: "Plano selecionado é inválido ou inativo." },
+            { status: 400 }
+          );
+        }
+        if (!user.is_superuser && selectedPlan.slug === "direcao" && id !== user.id) {
+          return NextResponse.json(
+            { ok: false, message: "Apenas o administrador pode atribuir o plano Direção." },
+            { status: 403 }
+          );
+        }
+      }
+
       const updatedUser = await prisma.accounts_user.update({
         where: { id },
         data: {
@@ -620,15 +724,15 @@ export async function PUT(
           last_name: (body.last_name || "").trim(),
           profile: body.profile || "coordinator",
           is_active: Boolean(body.is_active),
-          is_staff: Boolean(body.is_staff),
-          is_superuser: Boolean(body.is_superuser),
+          is_staff: user.is_superuser ? Boolean(body.is_staff) : targetUser.is_staff,
+          is_superuser: user.is_superuser ? Boolean(body.is_superuser) : targetUser.is_superuser,
           ...(rawPassword ? { password: hashDjangoPassword(rawPassword) } : {}),
           updated_at: now,
         },
       });
 
-      if (body.plan_id) {
-        const planId = BigInt(body.plan_id);
+      if (selectedPlan) {
+        const planId = selectedPlan.id;
         const subActive = Boolean(body.subscription_active);
         const existingSub = await prisma.plans_subscription.findUnique({
           where: { user_id: id },
@@ -643,12 +747,17 @@ export async function PUT(
             },
           });
         } else {
+          const expiresAt =
+            selectedPlan.duration_days > 0
+              ? new Date(now.getTime() + selectedPlan.duration_days * 24 * 60 * 60 * 1000)
+              : null;
           await prisma.plans_subscription.create({
             data: {
               user_id: id,
               plan_id: planId,
               active: subActive,
               starts_at: now,
+              expires_at: expiresAt,
               created_at: now,
               updated_at: now,
             },
@@ -1018,7 +1127,8 @@ export async function DELETE(
 
     switch (module) {
       case "users": {
-        if (!user.is_superuser) {
+        const isDirecao = PlanService.hasActiveDirecaoPlan(user);
+        if (!user.is_superuser && !isDirecao) {
           return NextResponse.json(
             { ok: false, message: "Sem permissão." },
             { status: 403 }
@@ -1028,10 +1138,44 @@ export async function DELETE(
           return NextResponse.json(
             {
               ok: false,
-              message: "Você não pode excluir sua própria conta de administrador.",
+              message: "Você não pode excluir sua própria conta.",
             },
             { status: 400 }
           );
+        }
+        if (!user.is_superuser) {
+          const targetUser = await prisma.accounts_user.findUnique({
+            where: { id },
+            select: { is_superuser: true },
+          });
+          if (!targetUser || targetUser.is_superuser) {
+            return NextResponse.json(
+              { ok: false, message: "Sem permissão para excluir este usuário." },
+              { status: 403 }
+            );
+          }
+          const sharedProject = await prisma.schedules_project.findFirst({
+            where: {
+              AND: [
+                {
+                  OR: [
+                    { owner_id: user.id },
+                    { schedules_projectparticipant: { some: { user_id: user.id, active: true } } },
+                  ],
+                },
+                {
+                  schedules_projectparticipant: { some: { user_id: id } },
+                },
+              ],
+            },
+            select: { id: true },
+          });
+          if (!sharedProject) {
+            return NextResponse.json(
+              { ok: false, message: "Você só pode excluir usuários vinculados ao seu projeto." },
+              { status: 403 }
+            );
+          }
         }
 
         const ownedProjects = await prisma.schedules_project.count({

@@ -8,6 +8,7 @@ import {
   resolveSiteUrl,
 } from "@/lib/auth";
 import { sendUserConfirmationEmail } from "@/lib/email";
+import { PlanService } from "@/lib/services/access-control";
 
 export async function POST(request: Request) {
   try {
@@ -16,7 +17,9 @@ export async function POST(request: Request) {
     // Action 1: Admin resending confirmation email to a user
     if (body.action === "resend") {
       const admin = await getCurrentUser();
-      if (!admin || !admin.is_superuser) {
+      const canManageUsers =
+        !!admin && (admin.is_superuser || PlanService.hasActiveDirecaoPlan(admin));
+      if (!canManageUsers) {
         return NextResponse.json(
           { ok: false, message: "Sem permissão." },
           { status: 403 }
@@ -28,7 +31,7 @@ export async function POST(request: Request) {
         where: { id: targetId },
       });
 
-      if (!targetUser) {
+      if (!targetUser || (!admin.is_superuser && targetUser.is_superuser)) {
         return NextResponse.json(
           { ok: false, message: "Usuário não encontrado." },
           { status: 404 }

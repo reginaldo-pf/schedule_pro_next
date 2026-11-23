@@ -1,5 +1,6 @@
 import { requireShellContext } from "@/lib/shell-context";
 import { prisma, formatTime } from "@/lib/prisma";
+import { AccessControlService } from "@/lib/services/access-control";
 import { ACTIVE_RUN_STATUSES } from "@/lib/schedule/collision-engine";
 import { getActiveProjectDaysList } from "@/lib/schedule/report-builder";
 import { formatGroupSelectLabel, toIsoDateStr } from "@/lib/schedule/group-helpers";
@@ -231,8 +232,7 @@ export default async function ScheduleBuilderPage({
           start_date: toIsoDateStr(g.start_date),
           end_date: toIsoDateStr(g.end_date),
           can_edit:
-            user.is_superuser ||
-            project.owner_id === user.id ||
+            AccessControlService.isProjectAdmin(user, project) ||
             (g.owner_id !== null && g.owner_id === user.id),
         }))}
         classes={serializedClasses}

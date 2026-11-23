@@ -30,6 +30,7 @@ export interface ShellSubscription {
   isValid: boolean;
   plan: {
     name: string;
+    slug?: string;
     maxClasses: number;
     isTrial: boolean;
   };
@@ -471,7 +472,8 @@ export function AppShell({
                 </Link>
               </li>
 
-              {user.is_superuser && (
+              {(user.is_superuser ||
+                (subscription?.isValid && subscription?.plan?.slug === "direcao")) && (
                 <>
                   <li className="nav-header">ADMINISTRAÇÃO</li>
                   <li className="nav-item">
@@ -487,30 +489,34 @@ export function AppShell({
                       <p>Usuários</p>
                     </Link>
                   </li>
-                  <li className="nav-item">
-                    <Link
-                      href="/accounts/manage/emails"
-                      className={`nav-link ${
-                        pathname.startsWith("/accounts/manage/emails")
-                          ? "active"
-                          : ""
-                      }`}
-                    >
-                      <i className="nav-icon bi bi-envelope-gear" />
-                      <p>Gestão de E-mails</p>
-                    </Link>
-                  </li>
-                  <li className="nav-item">
-                    <Link
-                      href="/plans"
-                      className={`nav-link ${
-                        pathname.startsWith("/plans") ? "active" : ""
-                      }`}
-                    >
-                      <i className="nav-icon bi bi-tags" />
-                      <p>Planos</p>
-                    </Link>
-                  </li>
+                  {user.is_superuser && (
+                    <>
+                      <li className="nav-item">
+                        <Link
+                          href="/accounts/manage/emails"
+                          className={`nav-link ${
+                            pathname.startsWith("/accounts/manage/emails")
+                              ? "active"
+                              : ""
+                          }`}
+                        >
+                          <i className="nav-icon bi bi-envelope-gear" />
+                          <p>Gestão de E-mails</p>
+                        </Link>
+                      </li>
+                      <li className="nav-item">
+                        <Link
+                          href="/plans"
+                          className={`nav-link ${
+                            pathname.startsWith("/plans") ? "active" : ""
+                          }`}
+                        >
+                          <i className="nav-icon bi bi-tags" />
+                          <p>Planos</p>
+                        </Link>
+                      </li>
+                    </>
+                  )}
                 </>
               )}
             </ul>

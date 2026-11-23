@@ -15,7 +15,7 @@ export async function POST(request: Request) {
   if (body.action === "invite_participant") {
     const projectId = BigInt(body.projectId);
     const project = await prisma.schedules_project.findUnique({ where: { id: projectId } });
-    if (!project || (project.owner_id !== user.id && !user.is_superuser)) {
+    if (!project || !AccessControlService.isProjectAdmin(user, project)) {
       return NextResponse.json(
         { ok: false, message: "Apenas o proprietário pode convidar participantes." },
         { status: 403 }

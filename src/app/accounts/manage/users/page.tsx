@@ -1,18 +1,59 @@
+import { redirect } from "next/navigation";
 import { requireShellContext } from "@/lib/shell-context";
 import { prisma } from "@/lib/prisma";
+import { PlanService } from "@/lib/services/access-control";
 import { AppShell } from "@/components/layout/AppShell";
 import { AdminUsersClient } from "@/components/accounts/AdminUsersClient";
 
 export default async function AdminUsersPage() {
   const {
+    user,
     shellUser,
     shellProject,
     shellProjects,
     shellSubscription,
-  } = await requireShellContext({ requireSuperuser: true });
+  } = await requireShellContext();
+
+  const isDirecao = PlanService.hasActiveDirecaoPlan(user);
+  if (!user.is_superuser && !isDirecao) {
+    redirect("/dashboard");
+  }
+
+  let projectIds: bigint[] = [];
+  if (!user.is_superuser) {
+    const managedProjects = await prisma.schedules_project.findMany({
+      where: {
+        OR: [
+          { owner_id: user.id },
+          {
+            schedules_projectparticipant: {
+              some: { user_id: user.id, active: true },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    projectIds = managedProjects.map((p) => p.id);
+  }
 
   const [users, plans] = await Promise.all([
     prisma.accounts_user.findMany({
+      where: user.is_superuser
+        ? {}
+        : {
+            is_superuser: false,
+            OR: [
+              { id: user.id },
+              {
+                schedules_projectparticipant: {
+                  some: {
+                    project_id: { in: projectIds },
+                  },
+                },
+              },
+            ],
+          },
       include: {
         plans_subscription: {
           include: { plans_plan: true },
@@ -21,7 +62,9 @@ export default async function AdminUsersPage() {
       orderBy: { date_joined: "desc" },
     }),
     prisma.plans_plan.findMany({
-      where: { active: true },
+      where: user.is_superuser
+        ? { active: true }
+        : { active: true, slug: { not: "direcao" } },
       orderBy: { price: "asc" },
     }),
   ]);
@@ -55,7 +98,11 @@ export default async function AdminUsersPage() {
       subscription={shellSubscription}
       breadcrumbs={[{ label: "Administração" }, { label: "Usuários" }]}
     >
-      <AdminUsersClient users={serializedUsers} plans={serializedPlans} />
+      <AdminUsersClient
+        users={serializedUsers}
+        plans={serializedPlans}
+        isSuperuser={user.is_superuser}
+      />
     </AppShell>
   );
 }

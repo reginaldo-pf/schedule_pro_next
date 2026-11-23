@@ -39,6 +39,42 @@ export class PlanService {
     return plan;
   }
 
+  static async getOrCreateDirecaoPlan() {
+    let plan = await prisma.plans_plan.findUnique({
+      where: { slug: "direcao" },
+    });
+    if (!plan) {
+      plan = await prisma.plans_plan.create({
+        data: {
+          slug: "direcao",
+          name: "Direção",
+          max_classes: 50,
+          max_projects: 1,
+          max_groups: 10,
+          duration_days: 30,
+          is_trial: false,
+          price: 149,
+          active: true,
+        },
+      });
+    }
+    return plan;
+  }
+
+  static hasActiveDirecaoPlan(user: {
+    plans_subscription?: {
+      active: boolean;
+      expires_at: Date | null;
+      plans_plan: { slug: string };
+    } | null;
+  } | null): boolean {
+    if (!user) return false;
+    const sub = user.plans_subscription;
+    if (!sub || !sub.active) return false;
+    if (sub.expires_at && sub.expires_at < new Date()) return false;
+    return sub.plans_plan.slug === "direcao";
+  }
+
   static async createTrialSubscription(userId: bigint) {
     const plan = await this.getOrCreateTrialPlan();
     const now = new Date();
@@ -139,8 +175,14 @@ export class PlanService {
   static async getActiveClassesCount(userId: bigint): Promise<number> {
     return await prisma.classes_schoolclass.count({
       where: {
-        responsible_id: userId,
         active: true,
+        OR: [
+          { groups_group: { owner_id: userId } },
+          {
+            responsible_id: userId,
+            groups_group: { owner_id: null },
+          },
+        ],
       },
     });
   }
@@ -165,16 +207,26 @@ export class PlanService {
     return count < sub.plan.maxProjects;
   }
 
-  static async canCreateGroup(user: Parameters<typeof PlanService.getSubscription>[0]): Promise<boolean> {
+  static async canCreateGroup(
+    user: Parameters<typeof PlanService.getSubscription>[0],
+    projectId?: bigint
+  ): Promise<boolean> {
     if (!user) return false;
     if (user.is_superuser || user.is_staff) return true;
     const sub = await this.getSubscription(user);
     if (!sub || !sub.isValid) return false;
+    const isDirecao = sub.plan.slug === "direcao";
     const count = await prisma.groups_group.count({
-      where: {
-        owner_id: user.id,
-        status: { not: "INACTIVE" },
-      },
+      where:
+        isDirecao && projectId
+          ? {
+              project_id: projectId,
+              status: { not: "INACTIVE" },
+            }
+          : {
+              owner_id: user.id,
+              status: { not: "INACTIVE" },
+            },
     });
     return count < sub.plan.maxGroups;
   }
@@ -211,21 +263,55 @@ export class AccessControlService {
   }
 
   static canEditProjectSettings(
-    user: { id: bigint; is_superuser: boolean; is_staff: boolean },
+    user: {
+      id: bigint;
+      is_superuser: boolean;
+      is_staff: boolean;
+      plans_subscription?: {
+        active: boolean;
+        expires_at: Date | null;
+        plans_plan: { slug: string };
+      } | null;
+    },
     project: { owner_id: bigint }
   ): boolean {
-    return user.is_superuser || user.is_staff || project.owner_id === user.id;
+    return (
+      user.is_superuser ||
+      user.is_staff ||
+      project.owner_id === user.id ||
+      PlanService.hasActiveDirecaoPlan(user)
+    );
   }
 
   static isProjectAdmin(
-    user: { id: bigint; is_superuser: boolean },
+    user: {
+      id: bigint;
+      is_superuser: boolean;
+      plans_subscription?: {
+        active: boolean;
+        expires_at: Date | null;
+        plans_plan: { slug: string };
+      } | null;
+    },
     project: { owner_id: bigint }
   ): boolean {
-    return user.is_superuser || project.owner_id === user.id;
+    return (
+      user.is_superuser ||
+      project.owner_id === user.id ||
+      PlanService.hasActiveDirecaoPlan(user)
+    );
   }
 
   static canManageGroup(
-    user: { id: bigint; is_superuser: boolean },
+    user: {
+      id: bigint;
+      is_superuser: boolean;
+      plans_subscription?: {
+        active: boolean;
+        expires_at: Date | null;
+        plans_plan: { slug: string };
+      } | null;
+    },
     project: { owner_id: bigint },
     group: { owner_id: bigint | null }
   ): boolean {
@@ -236,7 +322,15 @@ export class AccessControlService {
   }
 
   static async canManageGroupIds(
-    user: { id: bigint; is_superuser: boolean },
+    user: {
+      id: bigint;
+      is_superuser: boolean;
+      plans_subscription?: {
+        active: boolean;
+        expires_at: Date | null;
+        plans_plan: { slug: string };
+      } | null;
+    },
     project: { id: bigint; owner_id: bigint },
     groupIds: bigint[]
   ): Promise<boolean> {
