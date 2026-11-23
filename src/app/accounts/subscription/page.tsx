@@ -2,6 +2,7 @@ import { requireShellContext } from "@/lib/shell-context";
 import { PlanService } from "@/lib/services/access-control";
 import { AppShell } from "@/components/layout/AppShell";
 import { ModuleHeader } from "@/components/crud/ModuleHeader";
+import { IncrementQuotaButton } from "@/components/plans/IncrementQuotaButton";
 
 export default async function SubscriptionPage() {
   const {
@@ -92,6 +93,17 @@ export default async function SubscriptionPage() {
                     {shellSubscription?.activeClassesCount || 0} /{" "}
                     {user.is_superuser ? "∞" : sub.plan.maxClasses}
                   </div>
+                  {!user.is_superuser &&
+                    sub.isValid &&
+                    sub.plan.slug === "direcao" && (
+                      <div className="mt-3 pt-3 border-top">
+                        <div className="small text-muted mb-2">
+                          Cotas contratadas: <strong>{sub.plan.maxGroups}</strong>{" "}
+                          (1 própria + {Math.max(0, sub.plan.maxGroups - 1)} para coordenadores)
+                        </div>
+                        <IncrementQuotaButton label="Adicionar +1 Cota (R$ 20,00)" />
+                      </div>
+                    )}
                 </div>
               </div>
             </div>

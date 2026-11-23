@@ -1,6 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { PlanService } from "@/lib/services/access-control";
+
+export async function PATCH(request: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ ok: false, message: "Não autenticado." }, { status: 401 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const incrementBy = Number(body.increment_by ?? 1);
+    if (!Number.isFinite(incrementBy) || incrementBy < 1 || incrementBy > 50) {
+      return NextResponse.json(
+        { ok: false, message: "Quantidade de cotas inválida (1 a 50)." },
+        { status: 400 }
+      );
+    }
+
+    const result = await PlanService.incrementDirecaoQuota(user.id, incrementBy);
+    return NextResponse.json({
+      ok: true,
+      purchased_groups: result.purchasedGroups,
+      message: `Plano incrementado! Agora você possui ${result.purchasedGroups} cotas de curso/coordenador no plano Direção.`,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro ao incrementar cotas do plano.";
+    return NextResponse.json({ ok: false, message: msg }, { status: 400 });
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -98,12 +127,24 @@ export async function POST(request: Request) {
       );
     }
 
+    const rawPurchasedGroups =
+      body.purchased_groups !== undefined &&
+      body.purchased_groups !== null &&
+      body.purchased_groups !== ""
+        ? Math.floor(Number(body.purchased_groups))
+        : null;
+    const purchasedGroups =
+      rawPurchasedGroups !== null && Number.isFinite(rawPurchasedGroups) && rawPurchasedGroups >= 1
+        ? rawPurchasedGroups
+        : null;
+
     if (existingSub) {
       await prisma.plans_subscription.update({
         where: { user_id: targetUser.id },
         data: {
           plan_id: plan.id,
           active,
+          purchased_groups: purchasedGroups,
           starts_at:
             renewMode === "extend_current" &&
             existingSub.expires_at &&
@@ -120,6 +161,7 @@ export async function POST(request: Request) {
           user_id: targetUser.id,
           plan_id: plan.id,
           active,
+          purchased_groups: purchasedGroups,
           starts_at: now,
           expires_at: newExpiresAt,
           created_at: now,

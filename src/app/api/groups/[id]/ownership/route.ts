@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, getActiveProject } from "@/lib/auth";
-import { AccessControlService } from "@/lib/services/access-control";
+import { AccessControlService, PlanService } from "@/lib/services/access-control";
 
 export async function POST(
   request: Request,
@@ -44,6 +44,17 @@ export async function POST(
     const isAdmin = AccessControlService.isProjectAdmin(user, activeProject);
     const isCourseOwner =
       targetGroup.owner_id !== null && targetGroup.owner_id === user.id;
+
+    if (!user.is_superuser && !(await PlanService.isSubscriptionActive(user))) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message:
+            "Sua assinatura está inativa ou expirada. Renove seu plano para gerenciar a posse de cursos.",
+        },
+        { status: 403 }
+      );
+    }
 
     if (action === "revoke") {
       if (!isAdmin) {

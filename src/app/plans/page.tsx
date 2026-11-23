@@ -55,6 +55,10 @@ export default async function PlansPage() {
       user_active: u.is_active,
       plan_id: sub ? Number(sub.plan_id) : null,
       plan_name: sub?.plans_plan?.name || "Sem plano",
+      purchased_groups: sub?.purchased_groups ?? null,
+      effective_max_groups: sub
+        ? sub.purchased_groups ?? sub.plans_plan.max_groups
+        : null,
       sub_active: sub ? sub.active : false,
       is_valid: isValid,
       is_expired: isExpired,

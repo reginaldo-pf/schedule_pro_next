@@ -1,5 +1,6 @@
 import { requireShellContext } from "@/lib/shell-context";
 import { prisma } from "@/lib/prisma";
+import { AccessControlService, PlanService } from "@/lib/services/access-control";
 import { AppShell } from "@/components/layout/AppShell";
 import { DashboardClient } from "@/components/dashboard/DashboardClient";
 
@@ -13,7 +14,18 @@ export default async function DashboardPage() {
     shellSubscription,
   } = await requireShellContext();
 
-  const totalProjects = shellProjects.length;
+  const [totalProjects, ownedProjectsCount, sub] = await Promise.all([
+    Promise.resolve(shellProjects.length),
+    prisma.schedules_project.count({
+      where: { owner_id: user.id },
+    }),
+    PlanService.getSubscription(user),
+  ]);
+
+  const participatingProjectsCount = Math.max(0, totalProjects - ownedProjectsCount);
+  const isProjectAdmin = activeProject
+    ? AccessControlService.isProjectAdmin(user, activeProject)
+    : false;
 
   let totals = {
     total_groups: 0,
@@ -29,6 +41,7 @@ export default async function DashboardPage() {
   const groupsData: {
     id: number;
     name: string;
+    status: string;
     classes_count: number;
     subjects_count: number;
     weekly_lessons: number;
@@ -37,6 +50,76 @@ export default async function DashboardPage() {
   }[] = [];
 
   if (activeProject) {
+    const groupScopeWhere = isProjectAdmin
+      ? { project_id: activeProject.id, status: { not: "INACTIVE" } }
+      : {
+          project_id: activeProject.id,
+          owner_id: user.id,
+          status: { not: "INACTIVE" },
+        };
+
+    const classScopeWhere = isProjectAdmin
+      ? {
+          project_id: activeProject.id,
+          active: true,
+          groups_group: { status: { not: "INACTIVE" } },
+        }
+      : {
+          project_id: activeProject.id,
+          active: true,
+          OR: [
+            {
+              groups_group: {
+                owner_id: user.id,
+                status: { not: "INACTIVE" },
+              },
+            },
+            {
+              responsible_id: user.id,
+              groups_group: {
+                owner_id: null,
+                status: { not: "INACTIVE" },
+              },
+            },
+          ],
+        };
+
+    const subjectScopeWhere = isProjectAdmin
+      ? {
+          project_id: activeProject.id,
+          active: true,
+          groups_group: { status: { not: "INACTIVE" } },
+        }
+      : {
+          project_id: activeProject.id,
+          active: true,
+          groups_group: {
+            owner_id: user.id,
+            status: { not: "INACTIVE" },
+          },
+        };
+
+    const lessonScopeWhere = isProjectAdmin
+      ? {
+          project_id: activeProject.id,
+          active: true,
+          subjects_subject: {
+            active: true,
+            groups_group: { status: { not: "INACTIVE" } },
+          },
+        }
+      : {
+          project_id: activeProject.id,
+          active: true,
+          subjects_subject: {
+            active: true,
+            groups_group: {
+              owner_id: user.id,
+              status: { not: "INACTIVE" },
+            },
+          },
+        };
+
     const [
       groups,
       periods,
@@ -47,7 +130,7 @@ export default async function DashboardPage() {
       totalRooms,
     ] = await Promise.all([
       prisma.groups_group.findMany({
-        where: { project_id: activeProject.id, status: "PUBLISHED" },
+        where: groupScopeWhere,
         include: {
           _count: {
             select: {
@@ -62,31 +145,16 @@ export default async function DashboardPage() {
         where: { project_id: activeProject.id },
       }),
       prisma.classes_schoolclass.count({
-        where: {
-          project_id: activeProject.id,
-          active: true,
-          groups_group: { status: "PUBLISHED" },
-        },
+        where: classScopeWhere,
       }),
       prisma.teachers_teacher.count({
         where: { project_id: activeProject.id, active: true },
       }),
       prisma.subjects_subject.count({
-        where: {
-          project_id: activeProject.id,
-          active: true,
-          groups_group: { status: "PUBLISHED" },
-        },
+        where: subjectScopeWhere,
       }),
       prisma.lessons_lesson.findMany({
-        where: {
-          project_id: activeProject.id,
-          active: true,
-          subjects_subject: {
-            active: true,
-            groups_group: { status: "PUBLISHED" },
-          },
-        },
+        where: lessonScopeWhere,
         include: { subjects_subject: true },
       }),
       prisma.rooms_room.count({
@@ -136,6 +204,7 @@ export default async function DashboardPage() {
       groupsData.push({
         id: Number(g.id),
         name: g.academic_period ? `${g.name} (${g.academic_period})` : g.name,
+        status: g.status || "PUBLISHED",
         classes_count: g._count.classes_schoolclass,
         subjects_count: g._count.subjects_subject,
         weekly_lessons: groupLessonsSum,
@@ -145,15 +214,57 @@ export default async function DashboardPage() {
     }
   }
 
-  const maxClassesDisplay = user.is_superuser
+  const maxProjectsDisplay = user.is_superuser
     ? "∞"
-    : shellSubscription
-    ? String(shellSubscription.plan.maxClasses)
+    : sub
+    ? String(sub.plan.maxProjects)
     : "0";
 
-  const activeClassesCount = shellSubscription
-    ? shellSubscription.activeClassesCount
-    : 0;
+  const maxGroupsDisplay = user.is_superuser
+    ? "∞"
+    : sub
+    ? String(sub.plan.maxGroups)
+    : "0";
+
+  const maxClassesDisplay = user.is_superuser
+    ? "∞"
+    : sub
+    ? String(sub.plan.maxClasses)
+    : "0";
+
+  const projectsDisplay = user.is_superuser
+    ? String(totalProjects)
+    : `${ownedProjectsCount} / ${maxProjectsDisplay}`;
+
+  const projectsDescription = user.is_superuser
+    ? "Projetos do sistema"
+    : participatingProjectsCount > 0
+    ? `Próprios (limite) • Participando em ${participatingProjectsCount}`
+    : "Projetos próprios (limite do plano)";
+
+  const groupsDisplay = `${totals.total_groups} / ${maxGroupsDisplay}`;
+  const groupsDescription = user.is_superuser
+    ? "Cursos no projeto (Ilimitado)"
+    : isProjectAdmin
+    ? "Cursos no projeto (limite do plano)"
+    : "Seus cursos no projeto (limite do plano)";
+
+  const activeClassesDisplay = `${totals.total_classes} / ${maxClassesDisplay}`;
+  const usageDescription = user.is_superuser
+    ? "Turmas no projeto (Ilimitado)"
+    : !sub
+    ? "Sem plano ativo"
+    : isProjectAdmin
+    ? "Turmas no projeto (limite do plano)"
+    : "Suas turmas no projeto (limite do plano)";
+
+  const roleLabel = user.is_superuser
+    ? "Administrador"
+    : activeProject && activeProject.owner_id === user.id
+    ? "Proprietário"
+    : PlanService.hasActiveDirecaoPlan(user)
+    ? "Direção"
+    : "Coordenador";
 
   return (
     <AppShell
@@ -172,18 +283,17 @@ export default async function DashboardPage() {
               }
             : null
         }
-        totalProjects={totalProjects}
         totals={totals}
-        activeClassesDisplay={`${activeClassesCount} / ${maxClassesDisplay}`}
-        usageDescription={
-          user.is_superuser
-            ? "Uso do administrador (Ilimitado)"
-            : shellSubscription
-            ? "Uso da sua assinatura"
-            : "Sem plano ativo"
-        }
+        projectsDisplay={projectsDisplay}
+        projectsDescription={projectsDescription}
+        groupsDisplay={groupsDisplay}
+        groupsDescription={groupsDescription}
+        activeClassesDisplay={activeClassesDisplay}
+        usageDescription={usageDescription}
+        planName={sub?.plan.name || "Sem plano"}
+        roleLabel={roleLabel}
         groupsData={groupsData}
-        subscriptionValid={shellSubscription ? shellSubscription.isValid : false}
+        subscriptionValid={sub ? sub.isValid : false}
       />
     </AppShell>
   );

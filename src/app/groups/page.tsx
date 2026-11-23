@@ -108,6 +108,10 @@ export default async function GroupsPage() {
   }
 
   const isAdmin = AccessControlService.isProjectAdmin(user, activeProject!);
+  const licenseStatus = await AccessControlService.hasValidProjectLicense(
+    user,
+    activeProject!
+  );
 
   const serialized = groups.map((g) => ({
     id: Number(g.id),
@@ -118,10 +122,15 @@ export default async function GroupsPage() {
     status: g.status || "PUBLISHED",
     owner_id: g.owner_id ? Number(g.owner_id) : null,
     owner_name: g.accounts_user ? formatUserLabel(g.accounts_user) : "",
-    can_transfer_ownership: isAdmin || g.owner_id === user.id,
+    can_transfer_ownership:
+      licenseStatus.valid && (isAdmin || g.owner_id === user.id),
     can_revoke_ownership: isAdmin && g.owner_id !== null,
-    can_edit: isAdmin || g.owner_id === user.id,
-    can_delete_inactive: isAdmin || g.owner_id === user.id,
+    can_edit:
+      isAdmin ||
+      (licenseStatus.valid && g.owner_id !== null && g.owner_id === user.id),
+    can_delete_inactive:
+      isAdmin ||
+      (licenseStatus.valid && g.owner_id !== null && g.owner_id === user.id),
     classes_count: g._count.classes_schoolclass,
     subjects_count: g._count.subjects_subject,
   }));

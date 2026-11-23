@@ -29,6 +29,8 @@ interface UserSubscriptionItem {
   user_active: boolean;
   plan_id: number | null;
   plan_name: string;
+  purchased_groups: number | null;
+  effective_max_groups: number | null;
   sub_active: boolean;
   is_valid: boolean;
   is_expired: boolean;
@@ -86,6 +88,7 @@ export function PlansClient({
     duration_days: 30,
     renew_mode: "from_now" as "from_now" | "extend_current",
     expires_at: "",
+    purchased_groups: "",
     active: true,
   });
 
@@ -187,6 +190,7 @@ export function PlansClient({
       duration_days: defaultDays,
       renew_mode: defaultMode,
       expires_at: addDaysIso(baseIso, defaultDays),
+      purchased_groups: u.purchased_groups !== null ? String(u.purchased_groups) : "",
       active: true,
     });
   };
@@ -244,6 +248,9 @@ export function PlansClient({
           duration_days: renewForm.duration_days,
           renew_mode: renewForm.renew_mode,
           expires_at: renewForm.expires_at,
+          purchased_groups: renewForm.purchased_groups
+            ? Number(renewForm.purchased_groups)
+            : null,
           active: renewForm.active,
         }),
       });
@@ -374,6 +381,11 @@ export function PlansClient({
                         <span className="badge bg-info-subtle text-info-emphasis border border-info-subtle">
                           {u.plan_name}
                         </span>
+                        {u.effective_max_groups !== null && (
+                          <span className="badge bg-light text-dark border ms-1">
+                            {u.effective_max_groups} cota(s)
+                          </span>
+                        )}
                       </td>
                       <td className="small text-muted">
                         {formatDateBr(u.starts_at)}
@@ -758,6 +770,28 @@ export function PlansClient({
                             </option>
                           )}
                         </select>
+                      </div>
+
+                      <div className="col-12">
+                        <label className="form-label small fw-semibold">
+                          Cotas de Cursos Contratadas (opcional)
+                        </label>
+                        <input
+                          type="number"
+                          className="form-control"
+                          min={1}
+                          placeholder="Padrão do plano"
+                          value={renewForm.purchased_groups}
+                          onChange={(e) =>
+                            setRenewForm({
+                              ...renewForm,
+                              purchased_groups: e.target.value,
+                            })
+                          }
+                        />
+                        <div className="form-text">
+                          Para o plano Direção, define a quantidade personalizada de cursos/vagas deste usuário (1 cota reservada ao diretor).
+                        </div>
                       </div>
 
                       <div className="col-12">

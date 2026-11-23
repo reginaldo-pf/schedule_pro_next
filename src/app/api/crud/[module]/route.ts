@@ -428,7 +428,7 @@ export async function POST(
       }
 
       case "classes": {
-        if (!(await PlanService.canAddClass(user))) {
+        if (!(await PlanService.canAddClass(user, project.id))) {
           return NextResponse.json(
             {
               ok: false,

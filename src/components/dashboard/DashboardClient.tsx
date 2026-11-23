@@ -6,15 +6,19 @@ import type { ShellProject } from "@/components/layout/AppShell";
 
 export function DashboardClient({
   activeProject,
-  totalProjects,
   totals,
+  projectsDisplay,
+  projectsDescription,
+  groupsDisplay,
+  groupsDescription,
   activeClassesDisplay,
   usageDescription,
+  planName,
+  roleLabel,
   groupsData,
   subscriptionValid = true,
 }: {
   activeProject: (ShellProject & { timezone?: string }) | null;
-  totalProjects: number;
   totals: {
     total_groups: number;
     total_periods: number;
@@ -25,11 +29,18 @@ export function DashboardClient({
     total_lesson_slots: number;
     total_rooms: number;
   };
+  projectsDisplay: string;
+  projectsDescription: string;
+  groupsDisplay: string;
+  groupsDescription: string;
   activeClassesDisplay: string;
   usageDescription: string;
+  planName: string;
+  roleLabel: string;
   groupsData: {
     id: number;
     name: string;
+    status?: string;
     classes_count: number;
     subjects_count: number;
     weekly_lessons: number;
@@ -43,16 +54,16 @@ export function DashboardClient({
   const stats = [
     {
       label: "Projetos",
-      value: totalProjects,
-      description: "Projetos do usuário",
+      value: projectsDisplay,
+      description: projectsDescription,
       icon: "bi-folder2-open",
       iconClass: "icon-projects",
       url: "/projects",
     },
     {
       label: "Cursos / Grupos",
-      value: totals.total_groups,
-      description: "Cursos cadastrados",
+      value: groupsDisplay,
+      description: groupsDescription,
       icon: "bi-diagram-3",
       iconClass: "icon-groups",
       url: hasProject ? "/groups" : null,
@@ -151,6 +162,12 @@ export function DashboardClient({
                   <h6 className="mb-0 fw-bold text-dark">
                     {activeProject.name}
                   </h6>
+                  <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    {roleLabel}
+                  </span>
+                  <span className="badge bg-light text-dark border">
+                    Plano: {planName}
+                  </span>
                 </div>
                 <p
                   className="text-muted m-0 d-flex flex-wrap gap-2 align-items-center"
@@ -309,6 +326,11 @@ export function DashboardClient({
                           <span className="fw-semibold text-dark">
                             {data.name}
                           </span>
+                          {data.status === "PREVIEW" && (
+                            <span className="badge bg-warning-subtle text-warning border border-warning-subtle">
+                              Prévia
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="text-center py-2">

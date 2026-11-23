@@ -1,6 +1,6 @@
 import { requireShellContext } from "@/lib/shell-context";
 import { prisma, formatTime } from "@/lib/prisma";
-import { AccessControlService } from "@/lib/services/access-control";
+import { AccessControlService, PlanService } from "@/lib/services/access-control";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProjectsClient } from "@/components/projects/ProjectsClient";
 
@@ -30,7 +30,15 @@ export default async function ProjectsPage() {
     include: {
       accounts_user: true,
       schedules_projectparticipant: {
-        include: { accounts_user: true },
+        include: {
+          accounts_user: {
+            include: {
+              plans_subscription: {
+                include: { plans_plan: true },
+              },
+            },
+          },
+        },
       },
       _count: {
         select: {
@@ -43,40 +51,65 @@ export default async function ProjectsPage() {
     orderBy: [{ id: "desc" }],
   });
 
-  const serialized = projects.map((p) => ({
-    id: Number(p.id),
-    name: p.name,
-    institution_name: p.institution_name,
-    timezone: p.timezone,
-    report_header: p.report_header,
-    monday: p.monday,
-    tuesday: p.tuesday,
-    wednesday: p.wednesday,
-    thursday: p.thursday,
-    friday: p.friday,
-    saturday: p.saturday,
-    sunday: p.sunday,
-    lunch_break_enabled: p.lunch_break_enabled,
-    lunch_start: formatTime(p.lunch_start),
-    lunch_end: formatTime(p.lunch_end),
-    dinner_break_enabled: p.dinner_break_enabled,
-    dinner_start: formatTime(p.dinner_start),
-    dinner_end: formatTime(p.dinner_end),
-    interclass_break_enabled: p.interclass_break_enabled,
-    owner_id: Number(p.owner_id),
-    owner_username: p.accounts_user.username,
-    is_owner: AccessControlService.isProjectAdmin(user, p),
-    classes_count: p._count.classes_schoolclass,
-    teachers_count: p._count.teachers_teacher,
-    lessons_count: p._count.lessons_lesson,
-    participants: p.schedules_projectparticipant.map((pp) => ({
-      id: Number(pp.id),
-      user_id: Number(pp.user_id),
-      username: pp.accounts_user.username,
-      email: pp.accounts_user.email,
-      role: pp.role,
-    })),
-  }));
+  const serialized = await Promise.all(
+    projects.map(async (p) => {
+      const seats = await PlanService.getSponsoredSeatsInfo(p.id, p.owner_id);
+      const participants = await Promise.all(
+        p.schedules_projectparticipant.map(async (pp) => {
+          const sub = await PlanService.getSubscription(pp.accounts_user);
+          return {
+            id: Number(pp.id),
+            user_id: Number(pp.user_id),
+            username: pp.accounts_user.username,
+            email: pp.accounts_user.email,
+            role: pp.role,
+            license_source: pp.license_source || "INDIVIDUAL",
+            individual_sub_valid: Boolean(
+              pp.accounts_user.is_superuser || (sub && sub.isValid && !sub.plan.isTrial)
+            ),
+            individual_plan_name: sub?.plan.name || "Sem plano",
+          };
+        })
+      );
+
+      return {
+        id: Number(p.id),
+        name: p.name,
+        institution_name: p.institution_name,
+        timezone: p.timezone,
+        report_header: p.report_header,
+        monday: p.monday,
+        tuesday: p.tuesday,
+        wednesday: p.wednesday,
+        thursday: p.thursday,
+        friday: p.friday,
+        saturday: p.saturday,
+        sunday: p.sunday,
+        lunch_break_enabled: p.lunch_break_enabled,
+        lunch_start: formatTime(p.lunch_start),
+        lunch_end: formatTime(p.lunch_end),
+        dinner_break_enabled: p.dinner_break_enabled,
+        dinner_start: formatTime(p.dinner_start),
+        dinner_end: formatTime(p.dinner_end),
+        interclass_break_enabled: p.interclass_break_enabled,
+        owner_id: Number(p.owner_id),
+        owner_username: p.accounts_user.username,
+        is_owner: AccessControlService.isProjectAdmin(user, p),
+        can_leave:
+          p.owner_id !== user.id &&
+          p.schedules_projectparticipant.some((pp) => pp.user_id === user.id),
+        classes_count: p._count.classes_schoolclass,
+        teachers_count: p._count.teachers_teacher,
+        lessons_count: p._count.lessons_lesson,
+        sponsored_seats: {
+          max: seats.maxSponsoredSeats,
+          used: seats.usedSponsoredSeats,
+          available: seats.availableSponsoredSeats,
+        },
+        participants,
+      };
+    })
+  );
 
   return (
     <AppShell
@@ -89,6 +122,7 @@ export default async function ProjectsPage() {
       <ProjectsClient
         projects={serialized}
         activeProjectId={activeProject ? Number(activeProject.id) : null}
+        isDirecaoPlan={PlanService.hasActiveDirecaoPlan(user)}
       />
     </AppShell>
   );

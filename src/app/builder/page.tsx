@@ -205,6 +205,11 @@ export default async function ScheduleBuilderPage({
       }))
     : [];
 
+  const licenseStatus = await AccessControlService.hasValidProjectLicense(
+    user,
+    project
+  );
+
   return (
     <AppShell
       user={shellUser}
@@ -233,7 +238,7 @@ export default async function ScheduleBuilderPage({
           end_date: toIsoDateStr(g.end_date),
           can_edit:
             AccessControlService.isProjectAdmin(user, project) ||
-            (g.owner_id !== null && g.owner_id === user.id),
+            (licenseStatus.valid && g.owner_id !== null && g.owner_id === user.id),
         }))}
         classes={serializedClasses}
         teachers={serializedTeachers}
