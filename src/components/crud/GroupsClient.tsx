@@ -12,6 +12,13 @@ import {
   type GroupStatus,
 } from "@/lib/schedule/group-helpers";
 
+interface CoordinatorOption {
+  id: number;
+  name: string;
+  email: string;
+  is_project_owner: boolean;
+}
+
 interface GroupItem {
   id: number;
   name: string;
@@ -19,6 +26,10 @@ interface GroupItem {
   start_date: string;
   end_date: string;
   status: string;
+  owner_id: number | null;
+  owner_name: string;
+  can_transfer_ownership: boolean;
+  can_revoke_ownership: boolean;
   can_delete_inactive: boolean;
   classes_count: number;
   subjects_count: number;
@@ -43,9 +54,13 @@ function formatDateBr(isoDate: string): string {
 export function GroupsClient({
   projectName,
   groups,
+  coordinators,
+  currentUserId,
 }: {
   projectName: string;
   groups: GroupItem[];
+  coordinators: CoordinatorOption[];
+  currentUserId: number;
 }) {
   const router = useRouter();
   const { startLoading, stopLoading, showToast, confirmAction } = useUI();
@@ -64,6 +79,10 @@ export function GroupsClient({
     end_date: "",
     copy_schedule: true,
   });
+
+  // Ownership Transfer Modal State
+  const [transferTargetGroup, setTransferTargetGroup] = useState<GroupItem | null>(null);
+  const [selectedCoordinatorId, setSelectedCoordinatorId] = useState<string>("");
 
   const filtered = groups.filter((g) => {
     const st = normalizeGroupStatus(g.status);
@@ -126,6 +145,70 @@ export function GroupsClient({
       end_date: "",
       copy_schedule: true,
     });
+  };
+
+  const openTransferModal = (g: GroupItem) => {
+    const firstEligible = coordinators.find((c) => c.id !== g.owner_id);
+    setTransferTargetGroup(g);
+    setSelectedCoordinatorId(firstEligible ? String(firstEligible.id) : "");
+  };
+
+  const handleTransferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!transferTargetGroup || !selectedCoordinatorId) return;
+    startLoading();
+    try {
+      const res = await fetch(
+        `/api/groups/${transferTargetGroup.id}/ownership`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "transfer",
+            target_user_id: Number(selectedCoordinatorId),
+          }),
+        }
+      );
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast(data.message, "success");
+        setTransferTargetGroup(null);
+        router.refresh();
+      } else {
+        showToast(data.message || "Erro ao entregar posse do curso.", "danger");
+      }
+    } finally {
+      stopLoading();
+    }
+  };
+
+  const handleRevokeOwnership = async (g: GroupItem) => {
+    const periodText = g.academic_period ? ` (${g.academic_period})` : "";
+    const confirmed = await confirmAction({
+      title: "Revogar Posse do Coordenador",
+      message: `Deseja revogar a posse de "${g.owner_name}" sobre o curso "${g.name}${periodText}"? O curso ficará sem coordenador responsável (acessível ao administrador/dono do projeto).`,
+      confirmText: "Sim, Revogar Posse",
+      confirmVariant: "danger",
+    });
+    if (!confirmed) return;
+
+    startLoading();
+    try {
+      const res = await fetch(`/api/groups/${g.id}/ownership`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "revoke" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        showToast(data.message, "success");
+        router.refresh();
+      } else {
+        showToast(data.message || "Erro ao revogar posse.", "danger");
+      }
+    } finally {
+      stopLoading();
+    }
   };
 
   const handleSave = async (action: SaveActionType) => {
@@ -310,6 +393,7 @@ export function GroupsClient({
                 <th className="ps-4">Nome do Curso / Grupo</th>
                 <th>Período / Semestre</th>
                 <th>Duração / Vigência</th>
+                <th>Responsável / Posse</th>
                 <th className="text-center">Estado</th>
                 <th className="text-center">Turmas</th>
                 <th className="text-center">Disciplinas</th>
@@ -319,7 +403,7 @@ export function GroupsClient({
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">
+                  <td colSpan={8} className="text-center py-4 text-muted">
                     Nenhum curso encontrado.
                   </td>
                 </tr>
@@ -349,6 +433,26 @@ export function GroupsClient({
                           <span>Não definida</span>
                         )}
                       </td>
+                      <td>
+                        {g.owner_id ? (
+                          <span
+                            className={`badge ${
+                              g.owner_id === currentUserId
+                                ? "bg-primary-subtle text-primary border border-primary-subtle"
+                                : "bg-light text-dark border"
+                            }`}
+                          >
+                            <i className="bi bi-person-check-fill me-1" />
+                            {g.owner_name}
+                            {g.owner_id === currentUserId ? " (Você)" : ""}
+                          </span>
+                        ) : (
+                          <span className="badge bg-light text-muted border">
+                            <i className="bi bi-person-dash me-1" />
+                            Sem posse
+                          </span>
+                        )}
+                      </td>
                       <td className="text-center">
                         <span className={`badge ${meta.badgeClass}`}>
                           <i className={`bi ${meta.icon} me-1`} />
@@ -365,41 +469,65 @@ export function GroupsClient({
                           {g.subjects_count} disciplinas
                         </span>
                       </td>
-                      <td className="text-end pe-4">
+                      <td className="text-end pe-4 text-nowrap">
                         <div className="btn-group btn-group-sm">
                           {st !== "PUBLISHED" && (
                             <button
                               type="button"
                               className="btn btn-outline-success"
                               title="Publicar este período e desativar o anterior"
+                              aria-label="Publicar período"
                               onClick={() => handlePublish(g)}
                             >
-                              <i className="bi bi-broadcast me-1" />
-                              Publicar
+                              <i className="bi bi-broadcast" />
                             </button>
                           )}
                           <button
                             type="button"
                             className="btn btn-outline-secondary"
                             title="Copiar todo o período para um novo semestre (Prévia)"
+                            aria-label="Copiar período"
                             onClick={() => openCopyModal(g)}
                           >
-                            <i className="bi bi-copy me-1" />
-                            Copiar Período
+                            <i className="bi bi-copy" />
                           </button>
+                          {g.can_transfer_ownership && (
+                            <button
+                              type="button"
+                              className="btn btn-outline-info"
+                              title="Entregar posse deste curso para outro coordenador"
+                              aria-label="Entregar posse"
+                              onClick={() => openTransferModal(g)}
+                            >
+                              <i className="bi bi-person-up" />
+                            </button>
+                          )}
+                          {g.can_revoke_ownership && (
+                            <button
+                              type="button"
+                              className="btn btn-outline-warning"
+                              title="Revogar posse do coordenador atual (Admin)"
+                              aria-label="Revogar posse"
+                              onClick={() => handleRevokeOwnership(g)}
+                            >
+                              <i className="bi bi-person-x" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             className="btn btn-outline-primary"
+                            title="Editar curso / grupo"
+                            aria-label="Editar curso"
                             onClick={() => openEdit(startIndex + idx)}
                           >
-                            <i className="bi bi-pencil-square me-1" />
-                            Editar
+                            <i className="bi bi-pencil-square" />
                           </button>
                           {st === "INACTIVE" && g.can_delete_inactive && (
                             <button
                               type="button"
                               className="btn btn-outline-danger"
                               title="Excluir período inativo, aulas e horários vinculados"
+                              aria-label="Excluir período inativo"
                               onClick={() => handleDeleteInactive(g)}
                             >
                               <i className="bi bi-trash" />
@@ -655,6 +783,103 @@ export function GroupsClient({
                     <button type="submit" className="btn btn-primary btn-sm">
                       <i className="bi bi-copy me-1" />
                       Criar Cópia em Prévia
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Transfer Ownership Modal */}
+      {transferTargetGroup && (
+        <>
+          <div className="modal-backdrop fade show" />
+          <div
+            className="modal fade show d-block"
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="modal-dialog modal-dialog-centered">
+              <div className="modal-content border-0 shadow-lg">
+                <form onSubmit={handleTransferSubmit}>
+                  <div className="modal-header bg-light">
+                    <h5 className="modal-title fw-bold">
+                      <i className="bi bi-person-up text-info me-2" />
+                      Entregar Posse — {transferTargetGroup.name}
+                    </h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={() => setTransferTargetGroup(null)}
+                    />
+                  </div>
+                  <div className="modal-body">
+                    <div className="alert alert-info small py-2 mb-3">
+                      <i className="bi bi-info-circle me-1" />
+                      Curso:{" "}
+                      <strong>
+                        {transferTargetGroup.name}
+                        {transferTargetGroup.academic_period
+                          ? ` (${transferTargetGroup.academic_period})`
+                          : ""}
+                      </strong>
+                      <br />
+                      Responsável atual:{" "}
+                      <strong>
+                        {transferTargetGroup.owner_name || "Sem posse atribuída"}
+                      </strong>
+                    </div>
+
+                    <div className="mb-2">
+                      <label className="form-label small fw-semibold">
+                        Novo Coordenador Responsável *
+                      </label>
+                      {coordinators.filter(
+                        (c) => c.id !== transferTargetGroup.owner_id
+                      ).length === 0 ? (
+                        <div className="alert alert-warning small mb-0">
+                          Não há outro coordenador ativo cadastrado neste projeto.
+                          Convide um coordenador em <strong>Projetos</strong> antes
+                          de transferir a posse.
+                        </div>
+                      ) : (
+                        <select
+                          className="form-select"
+                          required
+                          value={selectedCoordinatorId}
+                          onChange={(e) => setSelectedCoordinatorId(e.target.value)}
+                        >
+                          <option value="">Selecione um coordenador...</option>
+                          {coordinators
+                            .filter((c) => c.id !== transferTargetGroup.owner_id)
+                            .map((c) => (
+                              <option key={c.id} value={String(c.id)}>
+                                {c.name} — {c.email}
+                                {c.is_project_owner ? " (Dono do Projeto)" : ""}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                  <div className="modal-footer bg-light">
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setTransferTargetGroup(null)}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary btn-sm"
+                      disabled={!selectedCoordinatorId}
+                    >
+                      <i className="bi bi-check2-circle me-1" />
+                      Confirmar Entrega de Posse
                     </button>
                   </div>
                 </form>
