@@ -60,22 +60,9 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const isCadastrosActive =
-    pathname.startsWith("/periods") ||
-    pathname.startsWith("/groups") ||
-    pathname.startsWith("/rooms") ||
-    pathname.startsWith("/teachers") ||
-    pathname.startsWith("/subjects") ||
-    pathname.startsWith("/classes") ||
-    pathname.startsWith("/lessons");
-
-  const [cadastrosOpen, setCadastrosOpen] = useState(isCadastrosActive);
-
   useEffect(() => {
-    if (isCadastrosActive) {
-      setCadastrosOpen(true);
-    }
-  }, [isCadastrosActive]);
+    setMobileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const saved = localStorage.getItem("sidebar-collapsed") === "true";
@@ -177,18 +164,18 @@ export function AppShell({
             </li>
           </ul>
 
-          <ul className="navbar-nav ms-auto align-items-center gap-2">
+          <ul className="navbar-nav ms-auto align-items-center gap-1 gap-sm-2">
             {/* Active Project Selector */}
             {projects.length > 0 && (
-              <li className="nav-item d-none d-sm-flex align-items-center">
+              <li className="nav-item d-flex align-items-center">
                 <div className="input-group input-group-sm">
                   <span className="input-group-text bg-primary-subtle text-primary border-0 fw-semibold">
-                    <i className="bi bi-folder2-open me-1" />
-                    Projeto
+                    <i className="bi bi-folder2-open me-sm-1" />
+                    <span className="d-none d-sm-inline">Projeto</span>
                   </span>
                   <select
                     className="form-select form-select-sm border-light-subtle fw-medium"
-                    style={{ maxWidth: 220 }}
+                    style={{ maxWidth: 165 }}
                     value={activeProject?.id || ""}
                     onChange={(e) => {
                       const val = Number(e.target.value);
@@ -274,6 +261,14 @@ export function AppShell({
         </div>
       </nav>
 
+      {/* Mobile Sidebar Backdrop */}
+      {mobileOpen && (
+        <div
+          className="sidebar-backdrop d-lg-none"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside className="app-sidebar shadow">
         <div className="sidebar-brand">
@@ -314,7 +309,7 @@ export function AppShell({
 
               {activeProject && (
                 <>
-                  <li className="nav-header">PLANEJAMENTO</li>
+                  <li className="nav-header">HORÁRIOS</li>
                   <li className="nav-item">
                     <Link
                       href="/builder"
@@ -322,7 +317,7 @@ export function AppShell({
                         pathname.startsWith("/builder") ? "active" : ""
                       }`}
                     >
-                      <i className="nav-icon bi bi-calendar-event" />
+                      <i className="nav-icon bi bi-calendar-week" />
                       <p>Grade Horária</p>
                     </Link>
                   </li>
@@ -338,110 +333,85 @@ export function AppShell({
                     </Link>
                   </li>
 
-                  <li
-                    className={`nav-item ${cadastrosOpen ? "menu-open" : ""}`}
-                  >
-                    <a
-                      href="#"
+                  <li className="nav-header">ACADÊMICO</li>
+                  <li className="nav-item">
+                    <Link
+                      href="/groups"
                       className={`nav-link ${
-                        isCadastrosActive ? "active" : ""
+                        pathname.startsWith("/groups") ? "active" : ""
                       }`}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCadastrosOpen((o) => !o);
-                      }}
                     >
-                      <i className="nav-icon bi bi-pencil-square" />
-                      <p>
-                        <span>Cadastros</span>
-                        <i
-                          className={`nav-arrow bi bi-chevron-${
-                            cadastrosOpen ? "down" : "right"
-                          }`}
-                        />
-                      </p>
-                    </a>
-                    {cadastrosOpen && (
-                      <ul className="nav nav-treeview">
-                        <li className="nav-item">
-                          <Link
-                            href="/periods"
-                            className={`nav-link ${
-                              pathname.startsWith("/periods") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-clock" />
-                            <p>Períodos</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            href="/groups"
-                            className={`nav-link ${
-                              pathname.startsWith("/groups") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-collection" />
-                            <p>Grupos / Cursos</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            href="/rooms"
-                            className={`nav-link ${
-                              pathname.startsWith("/rooms") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-door-open" />
-                            <p>Salas</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            href="/teachers"
-                            className={`nav-link ${
-                              pathname.startsWith("/teachers") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-person-badge" />
-                            <p>Professores</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            href="/subjects"
-                            className={`nav-link ${
-                              pathname.startsWith("/subjects") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-book" />
-                            <p>Disciplinas</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            href="/classes"
-                            className={`nav-link ${
-                              pathname.startsWith("/classes") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-mortarboard" />
-                            <p>Turmas</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            href="/lessons"
-                            className={`nav-link ${
-                              pathname.startsWith("/lessons") ? "active" : ""
-                            }`}
-                          >
-                            <i className="nav-icon bi bi-journal-text" />
-                            <p>Matriz de Aulas</p>
-                          </Link>
-                        </li>
-                      </ul>
-                    )}
+                      <i className="nav-icon bi bi-collection" />
+                      <p>Cursos / Períodos</p>
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link
+                      href="/classes"
+                      className={`nav-link ${
+                        pathname.startsWith("/classes") ? "active" : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-mortarboard" />
+                      <p>Turmas</p>
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link
+                      href="/subjects"
+                      className={`nav-link ${
+                        pathname.startsWith("/subjects") ? "active" : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-book" />
+                      <p>Disciplinas</p>
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link
+                      href="/lessons"
+                      className={`nav-link ${
+                        pathname.startsWith("/lessons") ? "active" : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-journal-text" />
+                      <p>Matriz de Aulas</p>
+                    </Link>
+                  </li>
+
+                  <li className="nav-header">RECURSOS</li>
+                  <li className="nav-item">
+                    <Link
+                      href="/periods"
+                      className={`nav-link ${
+                        pathname.startsWith("/periods") ? "active" : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-clock" />
+                      <p>Períodos e Turnos</p>
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link
+                      href="/teachers"
+                      className={`nav-link ${
+                        pathname.startsWith("/teachers") ? "active" : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-person-badge" />
+                      <p>Professores</p>
+                    </Link>
+                  </li>
+                  <li className="nav-item">
+                    <Link
+                      href="/rooms"
+                      className={`nav-link ${
+                        pathname.startsWith("/rooms") ? "active" : ""
+                      }`}
+                    >
+                      <i className="nav-icon bi bi-door-open" />
+                      <p>Salas</p>
+                    </Link>
                   </li>
                 </>
               )}

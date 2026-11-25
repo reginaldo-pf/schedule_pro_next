@@ -105,7 +105,7 @@ export function CrudModal({
                       title="Registro Anterior"
                     >
                       <i className="bi bi-chevron-left" />
-                      <span>Anterior</span>
+                      <span className="d-none d-sm-inline">Anterior</span>
                     </button>
                     <button
                       type="button"
@@ -114,7 +114,7 @@ export function CrudModal({
                       onClick={onNext}
                       title="Próximo Registro"
                     >
-                      <span>Próximo</span>
+                      <span className="d-none d-sm-inline">Próximo</span>
                       <i className="bi bi-chevron-right" />
                     </button>
                   </div>
@@ -138,7 +138,7 @@ export function CrudModal({
               <div className="modal-body p-4">{children}</div>
 
               {/* Standardized Multi-Action Footer */}
-              <div className="modal-footer bg-light border-top py-2 px-4 d-flex justify-content-between align-items-center flex-nowrap gap-2 overflow-x-auto">
+              <div className="modal-footer bg-light border-top py-2 px-3 px-sm-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div className="flex-shrink-0">
                   {isEditing && onDelete && (
                     <button
@@ -157,7 +157,7 @@ export function CrudModal({
                   )}
                 </div>
 
-                <div className="d-flex align-items-center gap-2 ms-auto flex-shrink-0">
+                <div className="d-flex align-items-center flex-wrap justify-content-end gap-2 ms-auto">
                   <button
                     type="button"
                     className="btn btn-light border btn-sm px-3 py-1 text-nowrap"

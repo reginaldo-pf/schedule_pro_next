@@ -447,6 +447,14 @@ nav.app-header.navbar {
 }
 
 /* --- Responsiveness --- */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 1037;
+}
+
 @media (max-width: 991.98px) {
   .app-sidebar {
     transform: translateX(-100%);
@@ -463,6 +471,32 @@ nav.app-header.navbar {
   }
   .app-wrapper.sidebar-open .app-sidebar {
     transform: translateX(0);
+  }
+  .app-content > .container-fluid {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+  .table-responsive {
+    -webkit-overflow-scrolling: touch;
+  }
+  .report-preview-container {
+    padding: 0.75rem 0.5rem;
+    overflow-x: auto;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .card-header .form-select,
+  .card-header .input-group {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+  .modal-body {
+    padding: 1rem !important;
   }
 }
 

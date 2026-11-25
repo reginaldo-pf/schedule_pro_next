@@ -920,15 +920,15 @@ export function ScheduleBuilderClient({
         <div className="col-lg-9">
           <div className="card border-0 shadow-sm overflow-hidden">
             {/* Filters Bar */}
-            <div className="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
-              <div className="d-flex flex-wrap align-items-center gap-2">
-                <div className="d-flex align-items-center gap-2">
-                  <label className="small fw-bold text-secondary mb-0">
+            <div className="p-3 bg-light border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2 gap-md-3">
+              <div className="d-flex flex-wrap align-items-center gap-2 w-100 w-xl-auto">
+                <div className="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0">
+                  <label className="small fw-bold text-secondary mb-0 text-nowrap">
                     Curso:
                   </label>
                   <select
                     className="form-select form-select-sm"
-                    style={{ minWidth: 210 }}
+                    style={{ minWidth: 160 }}
                     value={selectedGroupId || ""}
                     onChange={(e) => handleSelectGroup(Number(e.target.value))}
                   >
@@ -941,13 +941,13 @@ export function ScheduleBuilderClient({
                   </select>
                 </div>
 
-                <div className="d-flex align-items-center gap-2">
-                  <label className="small fw-bold text-secondary mb-0">
+                <div className="d-flex align-items-center gap-2 flex-grow-1 flex-sm-grow-0">
+                  <label className="small fw-bold text-secondary mb-0 text-nowrap">
                     Turma:
                   </label>
                   <select
                     className="form-select form-select-sm"
-                    style={{ minWidth: 210 }}
+                    style={{ minWidth: 160 }}
                     value={selectedClassId || ""}
                     disabled={!selectedGroupId}
                     onChange={(e) => handleSelectClass(Number(e.target.value))}

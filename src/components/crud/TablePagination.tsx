@@ -79,7 +79,7 @@ export function TablePagination({
   const pageRange = buildPageRange(page, totalPages);
 
   return (
-    <div className="card-footer bg-white border-top py-2 px-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div className="card-footer bg-white border-top py-2 px-3 px-sm-4 d-flex flex-wrap justify-content-center justify-content-sm-between align-items-center gap-2">
       <div className="d-flex align-items-center gap-3 small text-muted">
         <span>
           Exibindo <strong className="text-dark">{startIndex + 1}</strong> a{" "}

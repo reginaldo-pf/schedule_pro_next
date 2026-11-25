@@ -73,13 +73,22 @@ export function ModuleHeader({
           )}
 
           {/* Botões de Ação */}
-          <div className="col-md-auto d-flex align-items-center gap-2">
+          <div className="col-12 col-md-auto d-flex flex-wrap align-items-center justify-content-between justify-content-md-end gap-2">
+            {(projectName || statLabel) && (
+              <div className="d-flex d-lg-none align-items-center gap-2 flex-wrap small">
+                {statLabel && (
+                  <span className="badge bg-primary-subtle text-primary border border-primary-subtle">
+                    {statLabel}: <strong>{statValue}</strong>
+                  </span>
+                )}
+              </div>
+            )}
             {extraActions}
             {actionLabel && onAction && (
               <button
                 type="button"
                 onClick={onAction}
-                className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 shadow-sm"
+                className="btn btn-primary btn-sm d-flex align-items-center justify-content-center gap-2 px-3 py-2 shadow-sm w-100 w-sm-auto"
               >
                 <i className="bi bi-plus-lg" />
                 <span className="fw-bold">{actionLabel}</span>
