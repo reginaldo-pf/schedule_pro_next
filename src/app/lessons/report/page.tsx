@@ -33,7 +33,7 @@ export default async function LessonsMatrixReportPage({
   const roomId = sp.room ? Number(sp.room) : null;
 
   const groups = await prisma.groups_group.findMany({
-    where: { project_id: project.id, status: { not: "INACTIVE" } },
+    where: { project_id: project.id, status: "PUBLISHED" },
     orderBy: [{ name: "asc" }, { academic_period: "desc" }],
   });
 
@@ -51,7 +51,7 @@ export default async function LessonsMatrixReportPage({
       where: {
         project_id: project.id,
         active: true,
-        groups_group: { status: { not: "INACTIVE" } },
+        groups_group: { status: "PUBLISHED" },
       },
       include: { groups_group: true },
       orderBy: { name: "asc" },
@@ -68,6 +68,7 @@ export default async function LessonsMatrixReportPage({
                   active: true,
                   subjects_subject: {
                     group_id: { in: matchingGroupIds },
+                    groups_group: { status: "PUBLISHED" },
                   },
                 },
               },
@@ -87,8 +88,11 @@ export default async function LessonsMatrixReportPage({
             active: true,
             subjects_subject: {
               ...(hasCourseOrPeriodFilter
-                ? { group_id: { in: matchingGroupIds } }
-                : { groups_group: { status: { not: "INACTIVE" } } }),
+                ? {
+                    group_id: { in: matchingGroupIds },
+                    groups_group: { status: "PUBLISHED" },
+                  }
+                : { groups_group: { status: "PUBLISHED" } }),
             },
             ...(classId
               ? {
@@ -255,116 +259,131 @@ export default async function LessonsMatrixReportPage({
           initialQuery={rawQuery}
         />
 
-        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-          <div className="d-flex gap-2">
-            <Link href="/lessons" className="btn btn-outline-secondary btn-sm">
-              <i className="bi bi-arrow-left me-1" />
-              Voltar para Matriz de Aulas
-            </Link>
-            <Link href="/reports" className="btn btn-outline-secondary btn-sm">
-              <i className="bi bi-grid me-1" />
-              Central de Relatórios
-            </Link>
-          </div>
+        <div className="card border-0 shadow-sm mb-3 no-print d-print-none">
+          <div className="card-body p-3 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div className="d-flex flex-wrap gap-2">
+              <Link href="/lessons" className="btn btn-outline-secondary btn-sm">
+                <i className="bi bi-arrow-left me-1" />
+                Voltar para Matriz de Aulas
+              </Link>
+              <Link href="/reports" className="btn btn-outline-secondary btn-sm">
+                <i className="bi bi-grid me-1" />
+                Central de Relatórios
+              </Link>
+            </div>
 
-          {sortedTeachers.length > 0 && (
-            <a
-              href={buildPdfUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-sm"
-            >
-              <i className="bi bi-file-earmark-pdf-fill" />
-              <span>Imprimir / Gerar PDF (A4)</span>
-            </a>
-          )}
+            {sortedTeachers.length > 0 && (
+              <a
+                href={buildPdfUrl()}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary btn-sm d-flex align-items-center gap-2 px-3 py-2 fw-bold shadow-sm"
+              >
+                <i className="bi bi-file-earmark-pdf-fill" />
+                <span>Imprimir / Gerar PDF (A4)</span>
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Lista Normal de Aulas e Quantitativo por Professor */}
-      <div className="card border-0 shadow-sm p-4">
-        <div className="border-bottom pb-3 mb-4 d-flex justify-content-between align-items-center flex-wrap gap-2">
-          <div>
-            <div className="text-uppercase small fw-bold text-primary">
-              {project.institution_name} • {project.name}
-            </div>
-            <h5 className="fw-bold mb-0">
-              Quantitativo de Aulas e Distribuição por Professor
-            </h5>
-          </div>
-          <div className="d-flex align-items-center gap-2">
-            <span className="badge bg-light text-dark border px-3 py-2">
-              Docentes: <strong>{sortedTeachers.length}</strong>
-            </span>
-            <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
-              Total Geral: <strong>{grandTotalLessons} aulas/semana</strong>
-            </span>
-          </div>
-        </div>
-
-        {sortedTeachers.length === 0 ? (
-          <div className="text-center py-5 text-muted">
+      {/* Lista Padronizada de Aulas e Quantitativo por Professor */}
+      {sortedTeachers.length === 0 ? (
+        <div className="card border-0 shadow-sm p-5 text-center">
+          <i
+            className={`bi ${
+              hasFilterApplied ? "bi-journal-x" : "bi-funnel"
+            } display-3 text-muted mb-3`}
+          />
+          <h5 className="fw-bold text-secondary">
             {hasFilterApplied
-              ? "Nenhuma aula encontrada para os filtros selecionados."
-              : "Selecione um filtro acima para carregar o relatório de carga horária."}
-          </div>
-        ) : (
-          sortedTeachers.map((tGroup) => {
-            const totalLessons = tGroup.rows.reduce(
-              (acc, r) => acc + r.number_of_lessons,
-              0
-            );
-            return (
-              <div
-                key={tGroup.teacherId}
-                className="mb-4"
-                style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
-              >
-                <div className="bg-light p-2 px-3 rounded-top border border-bottom-0 d-flex justify-content-between align-items-center">
-                  <strong className="text-dark">
-                    <i className="bi bi-person-badge me-2 text-primary" />
-                    {tGroup.teacherName}
-                  </strong>
-                  <span className="badge bg-primary fs-6 px-3 py-2 shadow-sm d-inline-flex align-items-center gap-2">
-                    <i className="bi bi-clock-fill" />
-                    <span>
-                      <span className="fw-normal">Total:</span>{" "}
-                      <strong>{totalLessons} aulas/semana</strong>
-                    </span>
+              ? "Nenhuma aula encontrada para os filtros selecionados"
+              : "Selecione um filtro acima para carregar o relatório"}
+          </h5>
+          <p className="text-muted small mb-0">
+            {hasFilterApplied
+              ? "Tente ajustar os filtros ou verifique se o curso está publicado."
+              : "Para evitar carregamentos desnecessários, escolha uma opção nos filtros acima."}
+          </p>
+        </div>
+      ) : (
+        <div className="report-preview-container">
+          <div className="report-sheet report-sheet-flow">
+            <div className="report-header d-flex justify-content-between align-items-start flex-wrap gap-2">
+              <div>
+                <div className="report-institution">
+                  {project.institution_name || project.name}
+                </div>
+                <div className="report-subtitle">
+                  Quantitativo de Aulas e Distribuição por Professor
+                </div>
+                <div className="report-meta-row">
+                  <span>
+                    <strong>Projeto:</strong> {project.name}
                   </span>
                 </div>
-                <table
-                  className="table table-bordered table-sm align-middle mb-0"
-                  style={{ tableLayout: "fixed", width: "100%" }}
-                >
-                  <thead className="table-light">
-                    <tr>
-                      <th style={{ width: "42%" }}>Disciplina</th>
-                      <th style={{ width: "26%" }}>Turma(s)</th>
-                      <th style={{ width: "20%" }}>Sala</th>
-                      <th className="text-center" style={{ width: "12%" }}>
-                        Aulas
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {tGroup.rows.map((row, i) => (
-                      <tr key={i}>
-                        <td className="fw-medium text-break">{row.subject}</td>
-                        <td className="text-break">{row.classes}</td>
-                        <td className="text-break">{row.room}</td>
-                        <td className="text-center fw-bold">
-                          {row.number_of_lessons}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
-            );
-          })
-        )}
-      </div>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <span className="badge bg-light text-dark border px-3 py-2">
+                  Docentes: <strong>{sortedTeachers.length}</strong>
+                </span>
+                <span className="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                  Total Geral: <strong>{grandTotalLessons} aulas/semana</strong>
+                </span>
+              </div>
+            </div>
+
+            {sortedTeachers.map((tGroup) => {
+              const totalLessons = tGroup.rows.reduce(
+                (acc, r) => acc + r.number_of_lessons,
+                0
+              );
+              return (
+                <div key={tGroup.teacherId} className="report-teacher-section">
+                  <div className="report-teacher-banner flex-wrap gap-2">
+                    <span>
+                      <i className="bi bi-person-badge me-2 text-primary" />
+                      {tGroup.teacherName}
+                    </span>
+                    <span className="badge bg-primary px-2 py-1">
+                      Total: {totalLessons} aulas/semana
+                    </span>
+                  </div>
+                  <div className="table-responsive">
+                    <table
+                      className="report-matrix-table"
+                      style={{ minWidth: 540 }}
+                    >
+                      <thead>
+                        <tr>
+                          <th style={{ width: "42%" }}>Disciplina</th>
+                          <th style={{ width: "26%" }}>Turma(s)</th>
+                          <th style={{ width: "20%" }}>Sala</th>
+                          <th className="text-center" style={{ width: "12%" }}>
+                            Aulas
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tGroup.rows.map((row, i) => (
+                          <tr key={i}>
+                            <td className="fw-semibold">{row.subject}</td>
+                            <td>{row.classes}</td>
+                            <td>{row.room}</td>
+                            <td className="text-center fw-bold">
+                              {row.number_of_lessons}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 }

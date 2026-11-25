@@ -35,7 +35,7 @@ export default async function TeacherReportPage({
   const teacherId = sp.teacher ? Number(sp.teacher) : null;
 
   const groups = await prisma.groups_group.findMany({
-    where: { project_id: project.id, status: { not: "INACTIVE" } },
+    where: { project_id: project.id, status: "PUBLISHED" },
     orderBy: [{ name: "asc" }, { academic_period: "desc" }],
   });
 
@@ -55,7 +55,10 @@ export default async function TeacherReportPage({
                 lessons_lesson: {
                   project_id: project.id,
                   active: true,
-                  subjects_subject: { group_id: { in: matchingGroupIds } },
+                  subjects_subject: {
+                    group_id: { in: matchingGroupIds },
+                    groups_group: { status: "PUBLISHED" },
+                  },
                 },
               },
             },

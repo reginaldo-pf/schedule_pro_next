@@ -81,7 +81,7 @@ export async function buildCourseReportPages({
   groupId,
   groupIds,
   classId,
-  publishedOnly = false,
+  publishedOnly = true,
 }: {
   projectId: bigint;
   groupId?: number | null;
@@ -112,6 +112,7 @@ export async function buildCourseReportPages({
         run_id: latestRun.id,
         ...(classId ? { school_class_id: BigInt(classId) } : {}),
         classes_schoolclass: {
+          active: true,
           ...(groupIds && groupIds.length > 0
             ? { group_id: { in: groupIds } }
             : groupId
@@ -305,7 +306,7 @@ export async function buildTeacherReportPages({
   teacherId,
   groupId,
   groupIds,
-  publishedOnly = false,
+  publishedOnly = true,
 }: {
   projectId: bigint;
   teacherId?: number | null;
@@ -335,6 +336,7 @@ export async function buildTeacherReportPages({
       where: {
         run_id: latestRun.id,
         classes_schoolclass: {
+          active: true,
           ...(groupIds && groupIds.length > 0
             ? { group_id: { in: groupIds } }
             : groupId

@@ -31,14 +31,14 @@ export default async function CourseReportPage({
 
   const [groups, classes] = await Promise.all([
     prisma.groups_group.findMany({
-      where: { project_id: project.id, status: { not: "INACTIVE" } },
+      where: { project_id: project.id, status: "PUBLISHED" },
       orderBy: [{ name: "asc" }, { academic_period: "desc" }],
     }),
     prisma.classes_schoolclass.findMany({
       where: {
         project_id: project.id,
         active: true,
-        groups_group: { status: { not: "INACTIVE" } },
+        groups_group: { status: "PUBLISHED" },
       },
       include: { groups_group: true },
       orderBy: { name: "asc" },

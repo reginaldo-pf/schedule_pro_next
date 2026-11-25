@@ -105,7 +105,7 @@ export async function GET(req: NextRequest) {
     const projectNumId = Number(project.id);
 
     const activeProjectGroups = await prisma.groups_group.findMany({
-      where: { project_id: project.id, status: { not: "INACTIVE" } },
+      where: { project_id: project.id, status: "PUBLISHED" },
       orderBy: [{ name: "asc" }, { academic_period: "desc" }],
     });
     const matchingGroupIds = resolveGroupIdsParam(
@@ -247,8 +247,11 @@ export async function GET(req: NextRequest) {
                 active: true,
                 subjects_subject: {
                   ...(hasCourseOrPeriodFilter
-                    ? { group_id: { in: matchingGroupIds } }
-                    : { groups_group: { status: { not: "INACTIVE" } } }),
+                    ? {
+                        group_id: { in: matchingGroupIds },
+                        groups_group: { status: "PUBLISHED" },
+                      }
+                    : { groups_group: { status: "PUBLISHED" } }),
                 },
                 ...(classId
                   ? {
