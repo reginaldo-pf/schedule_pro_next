@@ -22,13 +22,26 @@ export async function GET(request: Request) {
   const entityId = BigInt(idParam);
 
   const days = getActiveProjectDaysList(project);
-  const periodsRaw = await prisma.periods_period.findMany({
+  let periodsRaw = await prisma.periods_period.findMany({
     where: {
       project_id: project.id,
       period_type: "CLASS",
     },
     orderBy: [{ start_time: "asc" }, { order: "asc" }],
   });
+
+  if (type === "class") {
+    const schoolClass = await prisma.classes_schoolclass.findFirst({
+      where: { id: entityId, project_id: project.id },
+      select: { shifts: true },
+    });
+    if (schoolClass?.shifts && schoolClass.shifts.length > 0) {
+      const allowedShifts = new Set(schoolClass.shifts);
+      periodsRaw = periodsRaw.filter((p) => allowedShifts.has(p.shift));
+    }
+  }
+
+  const allowedPeriodIds = new Set(periodsRaw.map((p) => p.id.toString()));
 
   const periods = periodsRaw.map((p) => ({
     id: Number(p.id),
@@ -63,7 +76,9 @@ export async function GET(request: Request) {
       where: { school_class_id: entityId },
     });
     for (const r of rows) {
-      statusMap[`${Number(r.period_id)}_${r.day_of_week}`] = r.status;
+      if (allowedPeriodIds.has(r.period_id.toString())) {
+        statusMap[`${Number(r.period_id)}_${r.day_of_week}`] = r.status;
+      }
     }
   }
 
