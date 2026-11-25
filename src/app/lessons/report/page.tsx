@@ -325,8 +325,12 @@ export default async function LessonsMatrixReportPage({
                     <i className="bi bi-person-badge me-2 text-primary" />
                     {tGroup.teacherName}
                   </strong>
-                  <span className="badge bg-primary">
-                    Total: {totalLessons} aulas/semana
+                  <span className="badge bg-primary fs-6 px-3 py-2 shadow-sm d-inline-flex align-items-center gap-2">
+                    <i className="bi bi-clock-fill" />
+                    <span>
+                      <span className="fw-normal">Total:</span>{" "}
+                      <strong>{totalLessons} aulas/semana</strong>
+                    </span>
                   </span>
                 </div>
                 <table

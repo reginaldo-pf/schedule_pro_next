@@ -153,11 +153,11 @@ const styles = StyleSheet.create({
   teacherBadge: {
     backgroundColor: "#0284c7",
     color: "#ffffff",
-    fontSize: 7.2,
+    fontSize: 8.5,
     fontWeight: 700,
-    paddingVertical: 2,
-    paddingHorizontal: 7,
-    borderRadius: 2,
+    paddingVertical: 3.5,
+    paddingHorizontal: 10,
+    borderRadius: 3,
   },
   table: {
     width: "100%",
