@@ -25,6 +25,8 @@ interface ClassItem {
   room_name: string;
   shifts: string[];
   active: boolean;
+  allocated_lessons: number;
+  total_lessons: number;
 }
 
 const SHIFT_OPTIONS = [
@@ -286,6 +288,7 @@ export function ClassesClient({
                 <th className="text-center">Nível / Semestre</th>
                 <th>Turnos</th>
                 <th>Sala Padrão</th>
+                <th className="text-center">Aulas Alocadas</th>
                 <th className="text-center">Status</th>
                 <th className="text-end pe-4">Ações</th>
               </tr>
@@ -293,7 +296,7 @@ export function ClassesClient({
             <tbody>
               {!hasSelection ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-5 text-muted">
+                  <td colSpan={8} className="text-center py-5 text-muted">
                     <i className="bi bi-funnel me-2" />
                     Selecione um <strong>Curso / Período</strong> acima ou
                     digite na busca para visualizar as turmas.
@@ -301,7 +304,7 @@ export function ClassesClient({
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">
+                  <td colSpan={8} className="text-center py-4 text-muted">
                     Nenhuma turma encontrada.
                   </td>
                 </tr>
@@ -358,6 +361,32 @@ export function ClassesClient({
                     <td>
                       {c.room_name || (
                         <span className="text-muted small">Não definida</span>
+                      )}
+                    </td>
+                    <td className="text-center">
+                      {c.total_lessons > 0 ? (
+                        <span
+                          className={`badge border ${
+                            c.allocated_lessons >= c.total_lessons
+                              ? "bg-success-subtle text-success border-success-subtle"
+                              : c.allocated_lessons > 0
+                              ? "bg-warning-subtle text-warning-emphasis border-warning-subtle"
+                              : "bg-secondary-subtle text-secondary border-secondary-subtle"
+                          }`}
+                          title={`${c.allocated_lessons} alocadas no horário de ${c.total_lessons} aulas cadastradas`}
+                        >
+                          <i className="bi bi-calendar3 me-1" />
+                          {c.allocated_lessons} / {c.total_lessons}
+                        </span>
+                      ) : (
+                        <span
+                          className="badge bg-secondary-subtle text-secondary border border-secondary-subtle"
+                          title="Nenhuma aula ativa cadastrada para esta turma"
+                        >
+                          {c.allocated_lessons > 0
+                            ? `${c.allocated_lessons} alocadas`
+                            : "0"}
+                        </span>
                       )}
                     </td>
                     <td className="text-center">
