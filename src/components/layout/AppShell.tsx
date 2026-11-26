@@ -276,7 +276,7 @@ export function AppShell({
             <span className="brand-logo-mini fw-bold text-white d-none">
               SP
             </span>
-            <span className="brand-text text-white">Schedule Pro</span>
+            <span className="brand-text text-white">Gerenciador de Horários</span>
           </Link>
         </div>
 

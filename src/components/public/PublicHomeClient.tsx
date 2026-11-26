@@ -176,7 +176,7 @@ export function PublicHomeClient({
             <div className="bg-primary text-white rounded-3 px-2 py-1 fw-bold">
               SP
             </div>
-            <span className="fw-bold fs-5 text-dark">Schedule Pro</span>
+            <span className="fw-bold fs-5 text-dark">Gerenciador de Horários</span>
           </div>
           <div className="d-flex gap-2">
             <Link
@@ -419,7 +419,7 @@ export function PublicHomeClient({
       </div>
 
       <footer className="bg-white border-top py-3 text-center text-muted small">
-        Schedule Pro • Gestão e Otimização de Horários Escolares
+        Gerenciador de Horários • Gestão e Otimização de Horários Escolares
       </footer>
     </div>
   );

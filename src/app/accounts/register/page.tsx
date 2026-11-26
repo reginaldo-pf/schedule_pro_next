@@ -19,7 +19,7 @@ export default function RegisterPage() {
             </Link>
             <h4 className="fw-bold mb-1">Cadastro Restrito</h4>
             <p className="text-muted small mb-0">
-              Schedule Pro • Gestão Acadêmica
+              Gerenciador de Horários • Gestão Acadêmica
             </p>
           </div>
 

@@ -259,7 +259,7 @@ export function LessonsWorkloadPdfDocument({
   return (
     <Document
       title={`Carga Horária e Matriz Docente - ${projectHeader.institution_name}`}
-      author="Schedule Pro"
+      author="Gerenciador de Horários"
     >
       <Page size="A4" orientation="portrait" style={styles.page} wrap>
         {/* Corporate Header repeated on every page */}
@@ -396,7 +396,7 @@ export function LessonsWorkloadPdfDocument({
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
             <Text style={styles.footerBold}>
-              {projectHeader.institution_name || "Schedule Pro"}
+              {projectHeader.institution_name || "Gerenciador de Horários"}
             </Text>{" "}
             • Autenticação: {serial} • Emitido em {generatedAt}
           </Text>

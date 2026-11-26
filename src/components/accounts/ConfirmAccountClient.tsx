@@ -73,7 +73,7 @@ export function ConfirmAccountClient({
             </Link>
             <h4 className="fw-bold mb-1">Confirmação de Conta</h4>
             <p className="text-muted small mb-0">
-              Validação de e-mail e ativação de acesso ao Schedule Pro
+              Validação de e-mail e ativação de acesso ao Gerenciador de Horários
             </p>
           </div>
 

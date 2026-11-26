@@ -322,7 +322,7 @@ export function ScheduleMatrixPdfDocument({
   const list = mode === "course" ? coursePages : teacherPages;
   if (list.length === 0) {
     return (
-      <Document title="Relatório de Horários" author="Schedule Pro">
+      <Document title="Relatório de Horários" author="Gerenciador de Horários">
         <Page size="A4" orientation={orientation} style={styles.page}>
           <View style={{ padding: 40, alignItems: "center" }}>
             <Text style={{ fontSize: 12, fontWeight: 700, color: "#0f172a" }}>
@@ -338,7 +338,7 @@ export function ScheduleMatrixPdfDocument({
     return (
       <Document
         title={`Horários por Curso e Turma - ${projectHeader.institution_name}`}
-        author="Schedule Pro"
+        author="Gerenciador de Horários"
       >
         {coursePages.map((page, pageIdx) => {
           const sizing = computeRowSizing(page.timeline_rows, orientation);
@@ -621,7 +621,7 @@ export function ScheduleMatrixPdfDocument({
                   <Text style={styles.footerBold}>
                     {projectHeader.institution_name}
                   </Text>{" "}
-                  • Sistema Corporativo Schedule Pro • Autenticação:{" "}
+                  • Sistema Corporativo Gerenciador de Horários • Autenticação:{" "}
                   {page.serial}
                 </Text>
                 <Text style={styles.footerText}>
@@ -639,7 +639,7 @@ export function ScheduleMatrixPdfDocument({
   return (
     <Document
       title={`Horários por Professor - ${projectHeader.institution_name}`}
-      author="Schedule Pro"
+      author="Gerenciador de Horários"
     >
       {teacherPages.map((page, pageIdx) => {
         const sizing = computeRowSizing(page.timeline_rows, orientation);
@@ -930,7 +930,7 @@ export function ScheduleMatrixPdfDocument({
                 <Text style={styles.footerBold}>
                   {projectHeader.institution_name}
                 </Text>{" "}
-                • Sistema Corporativo Schedule Pro • Autenticação: {page.serial}
+                • Sistema Corporativo Gerenciador de Horários • Autenticação: {page.serial}
               </Text>
               <Text style={styles.footerText}>
                 Emitido em: {generatedAt || new Date().toLocaleDateString("pt-BR")} •

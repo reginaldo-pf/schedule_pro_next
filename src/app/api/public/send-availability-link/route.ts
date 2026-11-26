@@ -55,14 +55,14 @@ export async function POST(request: Request) {
   const siteUrl = resolveSiteUrl(request);
   const portalUrl = `${siteUrl}/teachers/portal/${token}`;
 
-  const subject = `[Schedule Pro] Alteração de Disponibilidade de Horário - ${teacher.name}`;
+  const subject = `[Gerenciador de Horários] Alteração de Disponibilidade de Horário - ${teacher.name}`;
   const text =
     `Olá, ${teacher.name}.\n\n` +
     `Você solicitou acesso para alterar suas disponibilidades de horário no projeto "${project.name}" (${project.institution_name}).\n\n` +
     `Acesse o seu portal utilizando o link abaixo (válido por 10 minutos):\n\n` +
     `${portalUrl}\n\n` +
     `AVISO: Este é um e-mail automático enviado pelo sistema. Por favor, não responda a esta mensagem.\n\n` +
-    `Atenciosamente,\nEquipe Schedule Pro`;
+    `Atenciosamente,\nEquipe Gerenciador de Horários`;
 
   const html = `
 <!DOCTYPE html>
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
           <tr>
             <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);padding:24px 32px;color:#ffffff;">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;margin-bottom:4px;">
-                Schedule Pro • Consulta Pública
+                Gerenciador de Horários • Consulta Pública
               </div>
               <h2 style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">
                 Alteração de Disponibilidade Docente
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
           </tr>
           <tr>
             <td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;font-size:12px;color:#64748b;text-align:center;">
-              <strong>${project.institution_name}</strong> • Enviado via Schedule Pro
+              <strong>${project.institution_name}</strong> • Enviado via Gerenciador de Horários
             </td>
           </tr>
         </table>

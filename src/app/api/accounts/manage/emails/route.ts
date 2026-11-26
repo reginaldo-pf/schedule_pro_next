@@ -119,15 +119,15 @@ export async function POST(request: Request) {
 
   const result = await sendEmail({
     to: [testEmail],
-    subject: "[Schedule Pro] Teste de Envio de E-mail",
+    subject: "[Gerenciador de Horários] Teste de Envio de E-mail",
     text:
-      `Olá,\n\nEste é um e-mail de teste enviado pelo módulo de Gestão de E-mails do Schedule Pro.\n\n` +
+      `Olá,\n\nEste é um e-mail de teste enviado pelo módulo de Gestão de E-mails do Gerenciador de Horários.\n\n` +
       `Data/Hora: ${new Date().toLocaleString("pt-BR")}\n\n` +
       `AVISO: Este é um e-mail automático enviado pelo sistema. Por favor, não responda.`,
     html: `
       <div style="font-family:Arial,sans-serif;padding:24px;background:#f8fafc;">
         <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:24px;">
-          <h3 style="margin-top:0;color:#1e3a8a;">Schedule Pro • Teste de Envio</h3>
+          <h3 style="margin-top:0;color:#1e3a8a;">Gerenciador de Horários • Teste de Envio</h3>
           <p>Este é um e-mail de teste disparado pelo módulo de <strong>Gestão de E-mails</strong> da administração.</p>
           <p style="font-size:13px;color:#64748b;">Data/Hora: ${new Date().toLocaleString("pt-BR")}</p>
           <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:6px;padding:10px 12px;font-size:12px;color:#92400e;">

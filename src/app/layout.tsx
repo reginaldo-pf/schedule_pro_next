@@ -5,7 +5,7 @@ import "./globals.css";
 import { UIProvider } from "@/components/ui/UIProvider";
 
 export const metadata: Metadata = {
-  title: "Schedule Pro - Gestão Inteligente de Horários Escolares",
+  title: "Gerenciador de Horários - Gestão Inteligente de Horários Escolares",
   description:
     "Sistema avançado de geração automática e gestão de grades horárias acadêmicas.",
 };

@@ -43,7 +43,7 @@ export default async function PublicSchedulePage({
               <i className="bi bi-arrow-left me-1" />
               Voltar para Consulta Pública
             </Link>
-            <span className="fw-bold text-secondary">Schedule Pro</span>
+            <span className="fw-bold text-secondary">Gerenciador de Horários</span>
           </div>
 
           <ScheduleMatrixView
@@ -89,7 +89,7 @@ export default async function PublicSchedulePage({
               <i className="bi bi-arrow-left me-1" />
               Voltar para Consulta Pública
             </Link>
-            <span className="fw-bold text-secondary">Schedule Pro</span>
+            <span className="fw-bold text-secondary">Gerenciador de Horários</span>
           </div>
 
           <ScheduleMatrixView

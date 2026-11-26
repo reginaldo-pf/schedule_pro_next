@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
 export const DEFAULT_SENDER_EMAIL = "reginaldo.fernandes@ifce.edu.br";
-export const DEFAULT_SENDER_NAME = "Schedule Pro";
+export const DEFAULT_SENDER_NAME = "Gerenciador de Horários";
 
 export type EmailProviderMode = "auto" | "smtp" | "postmark" | "resend";
 

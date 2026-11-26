@@ -66,7 +66,7 @@ export default async function ReportVerifyPage({
                 <i className="bi bi-patch-check-fill fs-4 text-info" />
                 <div>
                   <div className="small text-uppercase fw-bold opacity-75">
-                    Verificação Oficial em Tempo Real • Schedule Pro
+                    Verificação Oficial em Tempo Real • Gerenciador de Horários
                   </div>
                   <h5 className="fw-bold mb-0">
                     Grade Horária Autenticada —{" "}
@@ -144,7 +144,7 @@ export default async function ReportVerifyPage({
                 <i className="bi bi-patch-check-fill fs-4 text-warning" />
                 <div>
                   <div className="small text-uppercase fw-bold opacity-75">
-                    Verificação Oficial em Tempo Real • Schedule Pro
+                    Verificação Oficial em Tempo Real • Gerenciador de Horários
                   </div>
                   <h5 className="fw-bold mb-0">
                     Horário Docente Autenticado —{" "}
@@ -258,7 +258,7 @@ export default async function ReportVerifyPage({
             <div>
               <div className="small text-uppercase fw-bold text-info mb-1">
                 <i className="bi bi-shield-fill-check me-1" />
-                Validação de Carga Horária e Matriz Docente • Schedule Pro
+                Validação de Carga Horária e Matriz Docente • Gerenciador de Horários
               </div>
               <h4 className="fw-bold mb-0">
                 {teacher

@@ -72,7 +72,7 @@ function resolvePostmarkFromAddress(
     .filter((s) => s && !s.includes("onboarding@resend.dev"));
 
   if (senders.length === 0) {
-    return `${configuredFromName || "Schedule Pro"} <${DEFAULT_SENDER_EMAIL}>`;
+    return `${configuredFromName || "Gerenciador de Horários"} <${DEFAULT_SENDER_EMAIL}>`;
   }
 
   if (recipientEmail && senders.length > 1) {
@@ -94,7 +94,7 @@ function resolveResendFromAddress(
   configuredFromEmail: string,
   configuredFromName: string
 ): string {
-  const DEFAULT_RESEND_SENDER = "Schedule Pro <onboarding@resend.dev>";
+  const DEFAULT_RESEND_SENDER = "Gerenciador de Horários <onboarding@resend.dev>";
   const rawFrom = (
     configuredFromEmail ||
     process.env.RESEND_FROM_EMAIL ||
@@ -103,7 +103,7 @@ function resolveResendFromAddress(
   ).trim();
 
   if (!rawFrom) {
-    return `${configuredFromName || "Schedule Pro"} <${DEFAULT_SENDER_EMAIL}>`;
+    return `${configuredFromName || "Gerenciador de Horários"} <${DEFAULT_SENDER_EMAIL}>`;
   }
 
   const firstSender = rawFrom.split(",")[0].trim();
@@ -119,7 +119,7 @@ function resolveResendFromAddress(
     return firstSender;
   }
 
-  return `${configuredFromName || "Schedule Pro"} <${emailPart}>`;
+  return `${configuredFromName || "Gerenciador de Horários"} <${emailPart}>`;
 }
 
 export async function sendEmail({
@@ -137,7 +137,7 @@ export async function sendEmail({
 }): Promise<SendEmailResult> {
   const settings = await getEmailSettings();
   const senderEmail = settings.from_email || DEFAULT_SENDER_EMAIL;
-  const senderName = settings.from_name || "Schedule Pro";
+  const senderName = settings.from_name || "Gerenciador de Horários";
   const formattedSender = `${senderName} <${senderEmail}>`;
   const resolvedReplyTo = replyTo || settings.reply_to || undefined;
   const mode = settings.provider_mode || "auto";
@@ -287,7 +287,7 @@ export async function sendEmail({
   if ((mode === "auto" || mode === "resend") && resendKey) {
     const resend = new Resend(resendKey);
     const primaryFrom = resolveResendFromAddress(senderEmail, senderName);
-    const fallbackFrom = "Schedule Pro <onboarding@resend.dev>";
+    const fallbackFrom = "Gerenciador de Horários <onboarding@resend.dev>";
 
     try {
       const { data, error } = await resend.emails.send({
@@ -391,7 +391,7 @@ export async function sendUserConfirmationEmail({
   replyTo?: string;
 }): Promise<SendEmailResult> {
   const displayName = firstName ? `${firstName} (${username})` : username;
-  const subject = `[Schedule Pro] Confirmação de Conta e Acesso - ${username}`;
+  const subject = `[Gerenciador de Horários] Confirmação de Conta e Acesso - ${username}`;
 
   const passwordNoteText = tempPassword
     ? `\nSua senha inicial de acesso foi definida como: ${tempPassword}\n(Você também poderá definir uma nova senha na tela de confirmação).\n`
@@ -399,14 +399,14 @@ export async function sendUserConfirmationEmail({
 
   const text =
     `Olá, ${displayName}.\n\n` +
-    `Uma conta foi criada para você na plataforma Schedule Pro.\n` +
+    `Uma conta foi criada para você na plataforma Gerenciador de Horários.\n` +
     `Usuário: ${username}\n` +
     `E-mail: ${toEmail}\n` +
     passwordNoteText +
     `\nPara confirmar seu e-mail e ativar sua conta, acesse o link abaixo:\n\n` +
     `${confirmUrl}\n\n` +
     `Este link é válido por 72 horas.\n\n` +
-    `Atenciosamente,\nEquipe Schedule Pro`;
+    `Atenciosamente,\nEquipe Gerenciador de Horários`;
 
   const passwordNoteHtml = tempPassword
     ? `
@@ -444,7 +444,7 @@ export async function sendUserConfirmationEmail({
           <tr>
             <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);padding:24px 32px;color:#ffffff;">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;margin-bottom:4px;">
-                Schedule Pro • Gestão Acadêmica
+                Gerenciador de Horários • Gestão Acadêmica
               </div>
               <h2 style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">
                 Confirmação de Conta de Usuário
@@ -457,7 +457,7 @@ export async function sendUserConfirmationEmail({
                 Olá, <strong>${displayName}</strong>,
               </p>
               <p style="margin:0 0 16px;font-size:14.5px;line-height:1.6;color:#334155;">
-                Sua conta de acesso ao <strong>Schedule Pro</strong> foi cadastrada pela administração do sistema. Para validar seu endereço de e-mail e ativar seu acesso, confirme seu cadastro clicando no botão abaixo:
+                Sua conta de acesso ao <strong>Gerenciador de Horários</strong> foi cadastrada pela administração do sistema. Para validar seu endereço de e-mail e ativar seu acesso, confirme seu cadastro clicando no botão abaixo:
               </p>
               ${passwordNoteHtml}
               <div style="text-align:center;margin:28px 0;">
@@ -480,7 +480,7 @@ export async function sendUserConfirmationEmail({
           </tr>
           <tr>
             <td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;font-size:12px;color:#64748b;text-align:center;">
-              Enviado via <strong>Schedule Pro</strong>
+              Enviado via <strong>Gerenciador de Horários</strong>
             </td>
           </tr>
         </table>

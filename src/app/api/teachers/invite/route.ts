@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     });
   }
 
-  const subject = `[Schedule Pro] Solicitação de Disponibilidade de Horário - ${teacher.name}`;
+  const subject = `[Gerenciador de Horários] Solicitação de Disponibilidade de Horário - ${teacher.name}`;
   const text =
     `Olá, ${teacher.name}.\n\n` +
     `A coordenação do projeto "${project.name}" na instituição ${project.institution_name} ` +
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     `${portalUrl}\n\n` +
     `Este link é de uso exclusivo e expira em 48 horas.\n\n` +
     `AVISO: Este é um e-mail automático enviado pelo sistema. Por favor, não responda a esta mensagem.\n\n` +
-    `Atenciosamente,\nEquipe Schedule Pro`;
+    `Atenciosamente,\nEquipe Gerenciador de Horários`;
 
   const html = `
 <!DOCTYPE html>
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
           <tr>
             <td style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 100%);padding:24px 32px;color:#ffffff;">
               <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#93c5fd;margin-bottom:4px;">
-                Schedule Pro • Gestão Acadêmica
+                Gerenciador de Horários • Gestão Acadêmica
               </div>
               <h2 style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">
                 Solicitação de Disponibilidade Docente
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
           </tr>
           <tr>
             <td style="background-color:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 32px;font-size:12px;color:#64748b;text-align:center;">
-              <strong>${project.institution_name}</strong> • Enviado via Schedule Pro
+              <strong>${project.institution_name}</strong> • Enviado via Gerenciador de Horários
             </td>
           </tr>
         </table>

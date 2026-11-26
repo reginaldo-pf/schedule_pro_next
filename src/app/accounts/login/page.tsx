@@ -28,7 +28,7 @@ function LoginFormContent() {
       });
       const data = await res.json();
       if (res.ok && data.ok) {
-        showToast(data.message || "Bem-vindo ao Schedule Pro!", "success");
+        showToast(data.message || "Bem-vindo ao Gerenciador de Horários!", "success");
         router.push("/dashboard");
         router.refresh();
       } else {
@@ -52,7 +52,7 @@ function LoginFormContent() {
                 SP
               </div>
             </Link>
-            <h4 className="fw-bold mb-1">Entrar no Schedule Pro</h4>
+            <h4 className="fw-bold mb-1">Entrar no Gerenciador de Horários</h4>
             <p className="text-muted small mb-0">
               Acesse sua conta para gerenciar projetos e horários
             </p>

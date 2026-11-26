@@ -350,7 +350,7 @@ export function ScheduleMatrixView({
                     <div className="report-footer-corp">
                       <span>
                         <strong>{projectHeader.institution_name}</strong> •
-                        Sistema Schedule Pro
+                        Sistema Gerenciador de Horários
                       </span>
                       <span>
                         Emitido em: {generatedAt || "Tempo Real"} • Página{" "}
@@ -533,7 +533,7 @@ export function ScheduleMatrixView({
                     <div className="report-footer-corp">
                       <span>
                         <strong>{projectHeader.institution_name}</strong> •
-                        Sistema Schedule Pro
+                        Sistema Gerenciador de Horários
                       </span>
                       <span>
                         Emitido em: {generatedAt || "Tempo Real"} • Página{" "}
